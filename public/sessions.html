@@ -41,6 +41,11 @@
                             <label for="session-description">Description:</label>
                             <input type="text" id="session-description" required placeholder="e.g., Beach Cleanup at Mission Bay">
                         </div>
+                        <div class="form-group">
+                            <label for="session-hours">Hours:</label>
+                            <input type="number" id="session-hours" min="0.5" max="24" step="0.5" value="1" required>
+                            <small style="color: #666; display: block; margin-top: 5px;">Default hours for this session (can be adjusted per member)</small>
+                        </div>
                         <button type="submit" class="btn btn-primary">Create Session</button>
                     </form>
                 </div>
@@ -86,6 +91,10 @@
                 <div class="form-group">
                     <label for="edit-session-description">Description:</label>
                     <input type="text" id="edit-session-description" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-session-hours">Hours:</label>
+                    <input type="number" id="edit-session-hours" min="0.5" max="24" step="0.5" value="1" required>
                 </div>
                 <div class="modal-buttons">
                     <button type="submit" class="btn btn-primary">Save Changes</button>

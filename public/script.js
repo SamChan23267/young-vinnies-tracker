@@ -71,6 +71,8 @@ if (window.location.pathname.endsWith('session.html')) {
     const urlParams = new URLSearchParams(window.location.search);
     const sessionId = urlParams.get('id');
     
+    let currentSession = null;
+    
     if (!sessionId) {
         showMessage('No session ID provided', 'error');
         setTimeout(() => window.location.href = 'index.html', 2000);
@@ -84,12 +86,15 @@ if (window.location.pathname.endsWith('session.html')) {
                 fetch('/api/members').then(res => res.json())
             ]);
             
+            currentSession = session;
+            const defaultHours = session.hours || 1;
+            
             // Display session details
             document.getElementById('session-title').textContent = session.description;
             document.getElementById('session-info').textContent = 
-                `Date: ${new Date(session.date).toLocaleDateString()} | ${session.attendees.length} attendee(s)`;
+                `Date: ${new Date(session.date).toLocaleDateString()} | ${session.attendees.length} attendee(s) | ${defaultHours} hour(s) default`;
             
-            // Display attendance checkboxes
+            // Display attendance checkboxes with hour inputs
             const attendanceList = document.getElementById('attendance-list');
             
             if (members.length === 0) {
@@ -97,40 +102,82 @@ if (window.location.pathname.endsWith('session.html')) {
                 return;
             }
             
-            attendanceList.innerHTML = members.map(member => `
-                <div class="attendance-item">
-                    <input 
-                        type="checkbox" 
-                        id="member-${member.code}" 
-                        value="${member.code}"
-                        ${session.attendees.includes(member.code) ? 'checked' : ''}
-                    >
-                    <label for="member-${member.code}">
-                        ${member.name} (${member.code})
-                    </label>
-                </div>
-            `).join('');
+            attendanceList.innerHTML = members.map(member => {
+                const isAttending = session.attendees.includes(member.code);
+                const individualHours = session.individualHours && session.individualHours[member.code] 
+                    ? session.individualHours[member.code] 
+                    : defaultHours;
+                
+                return `
+                    <div class="attendance-item">
+                        <input 
+                            type="checkbox" 
+                            id="member-${member.code}" 
+                            value="${member.code}"
+                            ${isAttending ? 'checked' : ''}
+                            onchange="toggleHoursInput('${member.code}')"
+                        >
+                        <label for="member-${member.code}">
+                            ${member.name} (${member.code})
+                        </label>
+                        <div class="hours-input" id="hours-input-${member.code}" style="display: ${isAttending ? 'inline-block' : 'none'}; margin-left: 15px;">
+                            <label for="hours-${member.code}" style="font-size: 0.9em;">Hours:</label>
+                            <input 
+                                type="number" 
+                                id="hours-${member.code}" 
+                                min="0.5" 
+                                max="24" 
+                                step="0.5" 
+                                value="${individualHours}"
+                                style="width: 70px; padding: 3px; border: 1px solid #ddd; border-radius: 4px;"
+                            >
+                        </div>
+                    </div>
+                `;
+            }).join('');
             
         } catch (error) {
             console.error('Error loading session details:', error);
             showMessage('Failed to load session details', 'error');
         }
     }
+    
+    // Toggle hours input visibility
+    window.toggleHoursInput = function(memberCode) {
+        const checkbox = document.getElementById(`member-${memberCode}`);
+        const hoursInput = document.getElementById(`hours-input-${memberCode}`);
+        if (hoursInput) {
+            hoursInput.style.display = checkbox.checked ? 'inline-block' : 'none';
+        }
+    };
 
     // Save attendance form handler
     document.getElementById('attendance-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         
         const checkboxes = document.querySelectorAll('#attendance-list input[type="checkbox"]');
-        const attendees = Array.from(checkboxes)
-            .filter(cb => cb.checked)
-            .map(cb => cb.value);
+        const attendees = [];
+        const individualHours = {};
+        
+        checkboxes.forEach(cb => {
+            if (cb.checked) {
+                const memberCode = cb.value;
+                attendees.push(memberCode);
+                
+                // Get individual hours for this member
+                const hoursInput = document.getElementById(`hours-${memberCode}`);
+                if (hoursInput) {
+                    const hours = parseFloat(hoursInput.value) || (currentSession.hours || 1);
+                    individualHours[memberCode] = hours;
+                }
+            }
+        });
         
         try {
             await apiCall(`/api/sessions/${sessionId}/attendance`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ attendees })
+                body: JSON.stringify({ attendees, individualHours })
             });
             
             showMessage('Attendance saved successfully!', 'success');
@@ -243,16 +290,27 @@ if (window.location.pathname.endsWith('index.html') || window.location.pathname 
             // Calculate statistics
             const totalMembers = members.length;
             const totalSessions = sessions.length;
+            let totalHours = 0;
             let totalAttendances = 0;
+            
             sessions.forEach(session => {
-                totalAttendances += session.attendees.length;
+                const sessionHours = session.hours || 1;
+                session.attendees.forEach(memberCode => {
+                    totalAttendances++;
+                    // Check if there's an individual hour override
+                    const individualHours = session.individualHours && session.individualHours[memberCode] 
+                        ? session.individualHours[memberCode] 
+                        : sessionHours;
+                    totalHours += individualHours;
+                });
             });
+            
             const avgAttendance = totalSessions > 0 ? Math.round(totalAttendances / totalSessions) : 0;
             
             // Update stat cards
             document.getElementById('total-members').textContent = totalMembers;
             document.getElementById('total-sessions').textContent = totalSessions;
-            document.getElementById('total-attendances').textContent = totalAttendances;
+            document.getElementById('total-attendances').textContent = `${totalHours} hrs`;
             document.getElementById('avg-attendance').textContent = avgAttendance;
             
             // Load recent sessions (last 5)
@@ -262,46 +320,53 @@ if (window.location.pathname.endsWith('index.html') || window.location.pathname 
             if (recentSessions.length === 0) {
                 recentSessionsContainer.innerHTML = '<p class="empty-state">No sessions yet. <a href="sessions.html">Create your first session</a>!</p>';
             } else {
-                recentSessionsContainer.innerHTML = recentSessions.map(session => `
-                    <div class="recent-session-item">
-                        <h4>${session.description}</h4>
-                        <p>Date: ${new Date(session.date).toLocaleDateString()}</p>
-                        <p>Attendees: ${session.attendees.length}</p>
-                    </div>
-                `).join('');
+                recentSessionsContainer.innerHTML = recentSessions.map(session => {
+                    const sessionHours = session.hours || 1;
+                    return `
+                        <div class="recent-session-item">
+                            <h4>${session.description}</h4>
+                            <p>Date: ${new Date(session.date).toLocaleDateString()}</p>
+                            <p>Attendees: ${session.attendees.length} (${sessionHours} hrs)</p>
+                        </div>
+                    `;
+                }).join('');
             }
             
-            // Load top volunteers
-            const memberAttendance = {};
+            // Load top volunteers - now calculated by total hours
+            const memberHours = {};
             members.forEach(member => {
-                memberAttendance[member.code] = {
+                memberHours[member.code] = {
                     name: member.name,
                     code: member.code,
-                    count: 0
+                    hours: 0
                 };
             });
             
             sessions.forEach(session => {
+                const sessionHours = session.hours || 1;
                 session.attendees.forEach(code => {
-                    if (memberAttendance[code]) {
-                        memberAttendance[code].count++;
+                    if (memberHours[code]) {
+                        const individualHours = session.individualHours && session.individualHours[code] 
+                            ? session.individualHours[code] 
+                            : sessionHours;
+                        memberHours[code].hours += individualHours;
                     }
                 });
             });
             
-            const topVolunteers = Object.values(memberAttendance)
-                .sort((a, b) => b.count - a.count)
+            const topVolunteers = Object.values(memberHours)
+                .sort((a, b) => b.hours - a.hours)
                 .slice(0, 5);
             
             const topVolunteersContainer = document.getElementById('top-volunteers-list');
             
-            if (topVolunteers.length === 0 || topVolunteers[0].count === 0) {
+            if (topVolunteers.length === 0 || topVolunteers[0].hours === 0) {
                 topVolunteersContainer.innerHTML = '<p class="empty-state">No attendance data yet.</p>';
             } else {
                 topVolunteersContainer.innerHTML = topVolunteers.map(volunteer => `
                     <div class="top-volunteer-item">
                         <h4>${volunteer.name} (${volunteer.code})</h4>
-                        <p>Sessions attended: ${volunteer.count}</p>
+                        <p>Total hours: ${volunteer.hours}</p>
                     </div>
                 `).join('');
             }
@@ -342,11 +407,15 @@ if (window.location.pathname.endsWith('members.html')) {
             return;
         }
         
-        // Calculate sessions attended for each member
-        const memberSessions = {};
+        // Calculate total hours for each member
+        const memberHours = {};
         allSessions.forEach(session => {
+            const sessionHours = session.hours || 1;
             session.attendees.forEach(code => {
-                memberSessions[code] = (memberSessions[code] || 0) + 1;
+                const individualHours = session.individualHours && session.individualHours[code] 
+                    ? session.individualHours[code] 
+                    : sessionHours;
+                memberHours[code] = (memberHours[code] || 0) + individualHours;
             });
         });
         
@@ -355,7 +424,7 @@ if (window.location.pathname.endsWith('members.html')) {
                 <td>${member.name}</td>
                 <td><strong>${member.code}</strong></td>
                 <td>${member.yearLevel || '-'}</td>
-                <td>${memberSessions[member.code] || 0}</td>
+                <td>${memberHours[member.code] || 0} hrs</td>
                 <td>
                     <div class="action-buttons">
                         <button class="btn btn-edit" onclick="editMember('${member.code}')">Edit</button>
@@ -509,6 +578,8 @@ if (window.location.pathname.endsWith('sessions.html')) {
         container.innerHTML = sessions.map(session => {
             const attendeeCount = session.attendees.length;
             const attendeeText = attendeeCount === 1 ? '1 attendee' : `${attendeeCount} attendees`;
+            const hours = session.hours || 1;
+            const totalHours = attendeeCount * hours;
             
             return `
                 <div class="session-item">
@@ -518,7 +589,8 @@ if (window.location.pathname.endsWith('sessions.html')) {
                     </div>
                     <h4>${session.description}</h4>
                     <p><strong>Date:</strong> ${new Date(session.date).toLocaleDateString()}</p>
-                    <p><strong>Attendance:</strong> ${attendeeText}</p>
+                    <p><strong>Duration:</strong> ${hours} hour${hours !== 1 ? 's' : ''}</p>
+                    <p><strong>Attendance:</strong> ${attendeeText} (${totalHours} total hours)</p>
                     ${session.attendees.length > 0 ? `
                         <div class="attendees">
                             <strong>Attendees:</strong> ${session.attendees.join(', ')}
@@ -568,9 +640,11 @@ if (window.location.pathname.endsWith('sessions.html')) {
         e.preventDefault();
         const dateInput = document.getElementById('session-date');
         const descriptionInput = document.getElementById('session-description');
+        const hoursInput = document.getElementById('session-hours');
         
         const date = dateInput.value;
         const description = descriptionInput.value.trim();
+        const hours = parseFloat(hoursInput.value) || 1;
         
         if (!date || !description) return;
         
@@ -578,12 +652,13 @@ if (window.location.pathname.endsWith('sessions.html')) {
             const session = await apiCall('/api/sessions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ date, description })
+                body: JSON.stringify({ date, description, hours })
             });
             
-            showMessage(`Session "${session.description}" created!`, 'success');
+            showMessage(`Session "${session.description}" created with ${session.hours} hour(s)!`, 'success');
             dateInput.value = '';
             descriptionInput.value = '';
+            hoursInput.value = '1';
             loadSessionsPage();
         } catch (error) {
             console.error('Error creating session:', error);
@@ -598,6 +673,7 @@ if (window.location.pathname.endsWith('sessions.html')) {
         document.getElementById('edit-session-id').value = id;
         document.getElementById('edit-session-date').value = session.date;
         document.getElementById('edit-session-description').value = session.description;
+        document.getElementById('edit-session-hours').value = session.hours || 1;
         
         document.getElementById('edit-session-modal').style.display = 'block';
     };
@@ -626,6 +702,7 @@ if (window.location.pathname.endsWith('sessions.html')) {
         const id = document.getElementById('edit-session-id').value;
         const date = document.getElementById('edit-session-date').value;
         const description = document.getElementById('edit-session-description').value.trim();
+        const hours = parseFloat(document.getElementById('edit-session-hours').value) || 1;
         
         if (!date || !description) return;
         
@@ -633,7 +710,7 @@ if (window.location.pathname.endsWith('sessions.html')) {
             await apiCall(`/api/sessions/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ date, description })
+                body: JSON.stringify({ date, description, hours })
             });
             
             showMessage(`Session updated successfully!`, 'success');
