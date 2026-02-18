@@ -1,0 +1,20 @@
+{
+  "name": "young-vinnies-tracker",
+  "version": "1.0.0",
+  "description": "A simple web application to track volunteer hours for a student group",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
+  "keywords": [
+    "volunteer",
+    "tracking",
+    "hours"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Session Attendance - Young Vinnies Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📋 Session Attendance</h1>
+            <a href="index.html" class="btn btn-secondary">← Back to Main</a>
+        </header>
+
+        <main>
+            <section class="card">
+                <div id="session-details">
+                    <h2 id="session-title">Loading...</h2>
+                    <p id="session-info"></p>
+                </div>
+
+                <div class="attendance-section">
+                    <h3>Mark Attendance</h3>
+                    <form id="attendance-form">
+                        <div id="attendance-list">
+                            <!-- Attendance checkboxes will be loaded here -->
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save Attendance</button>
+                    </form>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 Young Vinnies Volunteer Hour Tracker</p>
+        </footer>
+    </div>
+
+    <div id="message-container"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>

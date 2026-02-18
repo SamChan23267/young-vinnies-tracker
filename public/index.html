@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Young Vinnies Volunteer Hour Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌟 Young Vinnies Volunteer Hour Tracker</h1>
+            <p>Track volunteer hours and manage service sessions</p>
+        </header>
+
+        <main>
+            <!-- Member Management Section -->
+            <section class="card">
+                <h2>👥 Member Management</h2>
+                
+                <div class="form-section">
+                    <h3>Add New Member</h3>
+                    <form id="add-member-form">
+                        <div class="form-group">
+                            <label for="member-name">Member Name:</label>
+                            <input type="text" id="member-name" required placeholder="e.g., Mathis Lam">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Add Member</button>
+                    </form>
+                </div>
+
+                <div class="table-section">
+                    <h3>Current Members</h3>
+                    <div id="members-table-container">
+                        <table id="members-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Code</th>
+                                </tr>
+                            </thead>
+                            <tbody id="members-tbody">
+                                <!-- Members will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Session Management Section -->
+            <section class="card">
+                <h2>📅 Session Management</h2>
+                
+                <div class="form-section">
+                    <h3>Create New Session</h3>
+                    <form id="create-session-form">
+                        <div class="form-group">
+                            <label for="session-date">Session Date:</label>
+                            <input type="date" id="session-date" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="session-description">Description:</label>
+                            <input type="text" id="session-description" required placeholder="e.g., Beach Cleanup at Mission Bay">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Create Session</button>
+                    </form>
+                </div>
+
+                <div class="table-section">
+                    <h3>Past Sessions</h3>
+                    <div id="sessions-list-container">
+                        <div id="sessions-list">
+                            <!-- Sessions will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Export Section -->
+            <section class="card">
+                <h2>📊 Data Export</h2>
+                <p>Download all session attendance data as a CSV file.</p>
+                <button id="export-csv-btn" class="btn btn-success">Export All Sessions to CSV</button>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 Young Vinnies Volunteer Hour Tracker</p>
+        </footer>
+    </div>
+
+    <div id="message-container"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
