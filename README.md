@@ -43,12 +43,54 @@ A simple web application to track volunteer hours for a student group.
 
 ## Running the Application
 
+### Development Mode
+
 Start the server:
 ```bash
 npm start
 ```
 
 The application will be available at `http://localhost:3000`
+
+### Production Mode
+
+For production deployment, see the comprehensive [DEPLOYMENT.md](DEPLOYMENT.md) guide.
+
+Quick production setup:
+```bash
+# Install production dependencies
+npm install --production
+
+# Create environment file
+cp .env.example .env
+# Edit .env with your production values
+
+# Start server
+NODE_ENV=production npm start
+```
+
+**Production Features:**
+- Security headers (Helmet.js)
+- Rate limiting (100 requests/15 min)
+- Gzip compression
+- HTTP request logging
+- Health check endpoint
+- Environment-based configuration
+- Error handling
+
+## Backup & Restore
+
+### Create Backup
+```bash
+npm run backup
+```
+Creates a timestamped backup of all data files in `backups/` directory.
+
+### Restore from Backup
+```bash
+npm run restore
+```
+Interactive restore process - select a backup to restore.
 
 ## Login Credentials
 
@@ -60,18 +102,14 @@ The application will be available at `http://localhost:3000`
 | leader1 | leader123 | Admin | Full access to members and sessions |
 | leader2 | leader456 | Admin | Full access to members and sessions |
 
-> **Security Note**: This application is designed for internal use in a trusted environment. For production deployment:
-> - Change the default credentials in users.json
-> - Store credentials in environment variables
-> - Implement password hashing (bcrypt/argon2)
-> - Enable HTTPS and set secure cookie flag
-> - Consider adding CSRF protection
-> - The current implementation uses plaintext passwords for simplicity - suitable for a small school group but not for public-facing applications
-> - Store credentials in environment variables
-> - Implement password hashing (bcrypt/argon2)
-> - Enable HTTPS and set secure cookie flag
-> - Consider adding CSRF protection
-> - The current implementation uses plaintext passwords for simplicity - suitable for a small school group but not for public-facing applications
+> **⚠️ Security Warning**: Change these default passwords before production deployment!
+
+> **Production Deployment**: For production use, see [DEPLOYMENT.md](DEPLOYMENT.md) for:
+> - Proper environment variable configuration
+> - Session secret generation
+> - HTTPS/SSL setup
+> - Security hardening
+> - Deployment to various platforms (Heroku, Railway, VPS, etc.)
 
 ## Usage
 
