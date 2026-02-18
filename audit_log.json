@@ -50,5 +50,44 @@
         "JOHNS"
       ]
     }
+  },
+  {
+    "timestamp": "2026-02-18T22:35:28.816Z",
+    "username": "admin",
+    "action": "ADD_MEMBER",
+    "data": {
+      "name": "Sarah Williams",
+      "code": "SARAHW",
+      "yearLevel": ""
+    }
+  },
+  {
+    "timestamp": "2026-02-18T22:35:47.794Z",
+    "username": "admin",
+    "action": "CREATE_SESSION",
+    "data": {
+      "id": "2",
+      "date": "2024-03-21",
+      "description": "Food Bank Volunteer Day",
+      "hours": 3,
+      "attendees": [],
+      "individualHours": {}
+    }
+  },
+  {
+    "timestamp": "2026-02-18T22:36:08.204Z",
+    "username": "admin",
+    "action": "UPDATE_ATTENDANCE",
+    "data": {
+      "sessionId": "2",
+      "attendees": [
+        "JOHNS",
+        "SARAHW"
+      ],
+      "individualHours": {
+        "JOHNS": 2,
+        "SARAHW": 4
+      }
+    }
   }
 ]
