@@ -476,6 +476,7 @@ app.get('/api/export/csv', requireAuth, async (req, res) => {
     const data = await readData();
     const format = req.query.format || 'horizontal'; // horizontal, vertical, summary
     const dateFormat = req.query.dateFormat || 'combined'; // combined, separate
+    const memberDisplay = req.query.memberDisplay || 'code'; // code, name, both
     const sessionsParam = req.query.sessions; // comma-separated session IDs
     const startDate = req.query.startDate;
     const endDate = req.query.endDate;
@@ -497,31 +498,51 @@ app.get('/api/export/csv', requireAuth, async (req, res) => {
       filteredSessions = filteredSessions.filter(s => new Date(s.date) <= new Date(endDate));
     }
     
+    // Helper function to get member display value
+    const getMemberDisplay = (memberCode) => {
+      const member = data.members.find(m => m.code === memberCode);
+      if (!member) return memberCode;
+      
+      if (memberDisplay === 'code') {
+        return memberCode;
+      } else if (memberDisplay === 'name') {
+        return member.name;
+      } else if (memberDisplay === 'both') {
+        return `${memberCode} - ${member.name}`;
+      }
+      return memberCode;
+    };
+    
     let csv = '';
     let filename = 'volunteer_hours.csv';
     
     if (format === 'horizontal') {
-      // Horizontal format: Session Date, Session Description, Attended Member Codes
+      // Simplified horizontal format: Event, Date (or combined), Member
       if (dateFormat === 'combined') {
-        csv = 'Session Date,Session Description,Attended Member Codes\n';
+        const memberHeader = memberDisplay === 'code' ? 'Member Code' : 
+                           memberDisplay === 'name' ? 'Member Name' : 'Member';
+        csv = `Event,${memberHeader}\n`;
         filteredSessions.forEach(session => {
+          const eventName = `${session.description} (${session.date})`;
           if (session.attendees.length === 0) {
-            csv += `"${session.date}","${session.description}",""\n`;
+            csv += `"${eventName}",""\n`;
           } else {
             session.attendees.forEach(attendeeCode => {
-              csv += `"${session.date}","${session.description}","${attendeeCode}"\n`;
+              csv += `"${eventName}","${getMemberDisplay(attendeeCode)}"\n`;
             });
           }
         });
       } else {
         // Separate date format
-        csv = 'Event Name,Session Date,Attended Member Codes\n';
+        const memberHeader = memberDisplay === 'code' ? 'Member Code' : 
+                           memberDisplay === 'name' ? 'Member Name' : 'Member';
+        csv = `Event,Date,${memberHeader}\n`;
         filteredSessions.forEach(session => {
           if (session.attendees.length === 0) {
             csv += `"${session.description}","${session.date}",""\n`;
           } else {
             session.attendees.forEach(attendeeCode => {
-              csv += `"${session.description}","${session.date}","${attendeeCode}"\n`;
+              csv += `"${session.description}","${session.date}","${getMemberDisplay(attendeeCode)}"\n`;
             });
           }
         });
@@ -533,13 +554,19 @@ app.get('/api/export/csv', requireAuth, async (req, res) => {
       const sessions = filteredSessions;
       
       // Header row
-      if (dateFormat === 'combined') {
+      if (memberDisplay === 'code') {
+        csv = 'Member Code';
+      } else if (memberDisplay === 'name') {
+        csv = 'Member Name';
+      } else {
         csv = 'Member Code,Member Name';
+      }
+      
+      if (dateFormat === 'combined') {
         sessions.forEach(session => {
           csv += `,"${session.description} (${session.date})"`;
         });
       } else {
-        csv = 'Member Code,Member Name';
         sessions.forEach(session => {
           csv += `,"${session.description}","Date"`;
         });
@@ -548,7 +575,14 @@ app.get('/api/export/csv', requireAuth, async (req, res) => {
       
       // Data rows
       members.forEach(member => {
-        csv += `"${member.code}","${member.name}"`;
+        if (memberDisplay === 'code') {
+          csv += `"${member.code}"`;
+        } else if (memberDisplay === 'name') {
+          csv += `"${member.name}"`;
+        } else {
+          csv += `"${member.code}","${member.name}"`;
+        }
+        
         sessions.forEach(session => {
           const attended = session.attendees.includes(member.code);
           if (dateFormat === 'combined') {
@@ -562,13 +596,31 @@ app.get('/api/export/csv', requireAuth, async (req, res) => {
       filename = 'volunteer_hours_vertical.csv';
     } else if (format === 'summary') {
       // Summary format: Member totals
-      csv = 'Member Code,Member Name,Total Sessions Attended\n';
-      data.members.forEach(member => {
-        const totalSessions = filteredSessions.filter(session => 
-          session.attendees.includes(member.code)
-        ).length;
-        csv += `"${member.code}","${member.name}",${totalSessions}\n`;
-      });
+      if (memberDisplay === 'code') {
+        csv = 'Member Code,Total Sessions Attended\n';
+        data.members.forEach(member => {
+          const totalSessions = filteredSessions.filter(session => 
+            session.attendees.includes(member.code)
+          ).length;
+          csv += `"${member.code}",${totalSessions}\n`;
+        });
+      } else if (memberDisplay === 'name') {
+        csv = 'Member Name,Total Sessions Attended\n';
+        data.members.forEach(member => {
+          const totalSessions = filteredSessions.filter(session => 
+            session.attendees.includes(member.code)
+          ).length;
+          csv += `"${member.name}",${totalSessions}\n`;
+        });
+      } else {
+        csv = 'Member Code,Member Name,Total Sessions Attended\n';
+        data.members.forEach(member => {
+          const totalSessions = filteredSessions.filter(session => 
+            session.attendees.includes(member.code)
+          ).length;
+          csv += `"${member.code}","${member.name}",${totalSessions}\n`;
+        });
+      }
       filename = 'volunteer_hours_summary.csv';
     }
     

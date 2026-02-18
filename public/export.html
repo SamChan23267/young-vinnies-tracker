@@ -36,6 +36,14 @@
                     <h3>Export Settings</h3>
                     
                     <div class="form-group">
+                        <label for="export-type">Export Type:</label>
+                        <select id="export-type" class="form-select">
+                            <option value="csv">CSV File</option>
+                            <option value="googlesheet">Google Sheet (Coming Soon)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
                         <label for="export-format">Export Format:</label>
                         <select id="export-format" class="form-select">
                             <option value="horizontal">Horizontal (Session per row)</option>
@@ -49,6 +57,15 @@
                         <select id="date-format" class="form-select">
                             <option value="combined">Combined with event name</option>
                             <option value="separate">Separate column</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="member-display">Member Display:</label>
+                        <select id="member-display" class="form-select">
+                            <option value="code">Code only</option>
+                            <option value="name">Name only</option>
+                            <option value="both">Both (Code and Name)</option>
                         </select>
                     </div>
 

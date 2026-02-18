@@ -734,6 +734,13 @@ if (window.location.pathname.endsWith('export.html')) {
     
     // Export selected sessions
     document.getElementById('export-selected-btn')?.addEventListener('click', () => {
+        const exportType = document.getElementById('export-type').value;
+        
+        if (exportType === 'googlesheet') {
+            showMessage('Google Sheets export is coming soon!', 'info');
+            return;
+        }
+        
         if (selectedSessions.size === 0) {
             showMessage('Please select at least one session to export', 'error');
             return;
@@ -741,20 +748,29 @@ if (window.location.pathname.endsWith('export.html')) {
         
         const format = document.getElementById('export-format').value;
         const dateFormat = document.getElementById('date-format').value;
+        const memberDisplay = document.getElementById('member-display').value;
         const sessionIds = Array.from(selectedSessions).join(',');
         
-        window.location.href = `/api/export/csv?format=${format}&dateFormat=${dateFormat}&sessions=${sessionIds}`;
+        window.location.href = `/api/export/csv?format=${format}&dateFormat=${dateFormat}&memberDisplay=${memberDisplay}&sessions=${sessionIds}`;
         showMessage('Downloading CSV file...', 'success');
     });
     
     // Export all sessions
     document.getElementById('export-all-btn')?.addEventListener('click', () => {
+        const exportType = document.getElementById('export-type').value;
+        
+        if (exportType === 'googlesheet') {
+            showMessage('Google Sheets export is coming soon!', 'info');
+            return;
+        }
+        
         const format = document.getElementById('export-format').value;
         const dateFormat = document.getElementById('date-format').value;
+        const memberDisplay = document.getElementById('member-display').value;
         const startDate = document.getElementById('date-range-start').value;
         const endDate = document.getElementById('date-range-end').value;
         
-        let url = `/api/export/csv?format=${format}&dateFormat=${dateFormat}`;
+        let url = `/api/export/csv?format=${format}&dateFormat=${dateFormat}&memberDisplay=${memberDisplay}`;
         if (startDate) url += `&startDate=${startDate}`;
         if (endDate) url += `&endDate=${endDate}`;
         
