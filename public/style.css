@@ -982,3 +982,111 @@ header.has-logout p {
         margin-top: 10px;
     }
 }
+
+/* Admin Management Page Styles */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.stat-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card h3 {
+    font-size: 2em;
+    margin-bottom: 5px;
+}
+
+.stat-card p {
+    font-size: 0.9em;
+    opacity: 0.9;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.activity-list {
+    list-style: none;
+    padding: 0;
+}
+
+.activity-list li {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+
+.activity-list li:last-child {
+    border-bottom: none;
+}
+
+.activity-time {
+    font-size: 0.85em;
+    color: #666;
+    flex: 0 0 150px;
+}
+
+.activity-action {
+    font-weight: bold;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 0.85em;
+}
+
+.activity-action.ADD_USER {
+    background: #d4edda;
+    color: #155724;
+}
+
+.activity-action.UPDATE_USER {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.activity-action.DELETE_USER {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.activity-action.ADD_MEMBER {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.activity-action.CREATE_SESSION {
+    background: #e7d4f8;
+    color: #6f42c1;
+}
+
+.activity-user {
+    color: #666;
+    font-size: 0.9em;
+}
+
+.btn-sm {
+    padding: 5px 10px;
+    font-size: 0.85em;
+}
+
+.badge-primary {
+    background: #667eea;
+}
+
+.badge-secondary {
+    background: #6c757d;
+}

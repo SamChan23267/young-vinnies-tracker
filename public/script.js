@@ -259,7 +259,7 @@ if (window.location.pathname.endsWith('audit-log.html')) {
 
 // Common initialization for all pages (except login)
 if (!window.location.pathname.endsWith('login.html')) {
-    // Show audit link in nav for super admins
+    // Show audit link and admin management link in nav for super admins
     async function initNav() {
         try {
             const response = await fetch('/api/check-auth');
@@ -268,6 +268,10 @@ if (!window.location.pathname.endsWith('login.html')) {
                 const navAudit = document.getElementById('nav-audit');
                 if (navAudit) {
                     navAudit.style.display = 'block';
+                }
+                const navAdmin = document.getElementById('nav-admin-management');
+                if (navAdmin) {
+                    navAdmin.style.display = 'block';
                 }
             }
         } catch (error) {

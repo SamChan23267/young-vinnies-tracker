@@ -31,7 +31,7 @@ app.use((req, res, next) => {
   }
   
   // For main pages, check authentication
-  const protectedPages = ['/', '/index.html', '/session.html', '/audit-log.html', '/members.html', '/sessions.html', '/export.html', '/settings.html'];
+  const protectedPages = ['/', '/index.html', '/session.html', '/audit-log.html', '/members.html', '/sessions.html', '/export.html', '/settings.html', '/admin-management.html'];
   if (protectedPages.includes(req.path)) {
     if (!req.session.authenticated) {
       return res.redirect('/login.html');
@@ -629,6 +629,188 @@ app.put('/api/change-password', requireAuth, async (req, res) => {
     res.json({ success: true, message: 'Password changed successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to change password' });
+  }
+});
+
+// ===== USER MANAGEMENT ENDPOINTS (SUPER ADMIN ONLY) =====
+
+// GET /api/users - Get all users (super admin only)
+app.get('/api/users', requireSuperAdmin, async (req, res) => {
+  try {
+    const users = await readUsers();
+    // Return users without passwords for security
+    const safeUsers = users.map(u => ({
+      username: u.username,
+      role: u.role,
+      displayName: u.displayName
+    }));
+    res.json(safeUsers);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// POST /api/users - Add new user (super admin only)
+app.post('/api/users', requireSuperAdmin, async (req, res) => {
+  try {
+    const { username, password, role, displayName } = req.body;
+    
+    // Validation
+    if (!username || !password || !role || !displayName) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+    
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+    }
+    
+    if (!['admin', 'super_admin'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role. Must be admin or super_admin' });
+    }
+    
+    const users = await readUsers();
+    
+    // Check if username already exists
+    if (users.find(u => u.username === username)) {
+      return res.status(400).json({ error: 'Username already exists' });
+    }
+    
+    // Add new user
+    const newUser = { username, password, role, displayName };
+    users.push(newUser);
+    await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
+    
+    await logAudit('ADD_USER', { username, role, displayName }, req.session.username);
+    
+    res.json({ success: true, message: 'User added successfully', user: { username, role, displayName } });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to add user' });
+  }
+});
+
+// PUT /api/users/:username - Update user (super admin only)
+app.put('/api/users/:username', requireSuperAdmin, async (req, res) => {
+  try {
+    const { username } = req.params;
+    const { password, role, displayName } = req.body;
+    
+    const users = await readUsers();
+    const userIndex = users.findIndex(u => u.username === username);
+    
+    if (userIndex === -1) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Validate role if provided
+    if (role && !['admin', 'super_admin'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role. Must be admin or super_admin' });
+    }
+    
+    // Validate password length if provided
+    if (password && password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+    }
+    
+    // Prevent removing the last super admin
+    if (role === 'admin' && users[userIndex].role === 'super_admin') {
+      const superAdminCount = users.filter(u => u.role === 'super_admin').length;
+      if (superAdminCount <= 1) {
+        return res.status(400).json({ error: 'Cannot demote the last super admin' });
+      }
+    }
+    
+    // Update user fields
+    if (password) users[userIndex].password = password;
+    if (role) users[userIndex].role = role;
+    if (displayName) users[userIndex].displayName = displayName;
+    
+    await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
+    
+    await logAudit('UPDATE_USER', { username, updates: { password: password ? '***' : undefined, role, displayName } }, req.session.username);
+    
+    res.json({ success: true, message: 'User updated successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update user' });
+  }
+});
+
+// DELETE /api/users/:username - Delete user (super admin only)
+app.delete('/api/users/:username', requireSuperAdmin, async (req, res) => {
+  try {
+    const { username } = req.params;
+    
+    const users = await readUsers();
+    const userIndex = users.findIndex(u => u.username === username);
+    
+    if (userIndex === -1) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Prevent deleting yourself
+    if (username === req.session.username) {
+      return res.status(400).json({ error: 'Cannot delete your own account' });
+    }
+    
+    // Prevent deleting the last super admin
+    if (users[userIndex].role === 'super_admin') {
+      const superAdminCount = users.filter(u => u.role === 'super_admin').length;
+      if (superAdminCount <= 1) {
+        return res.status(400).json({ error: 'Cannot delete the last super admin' });
+      }
+    }
+    
+    // Remove user
+    users.splice(userIndex, 1);
+    await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
+    
+    await logAudit('DELETE_USER', { username, role: users[userIndex]?.role }, req.session.username);
+    
+    res.json({ success: true, message: 'User deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
+// GET /api/system-stats - Get system statistics (super admin only)
+app.get('/api/system-stats', requireSuperAdmin, async (req, res) => {
+  try {
+    const data = await readData();
+    const users = await readUsers();
+    const logData = await fs.readFile(AUDIT_LOG_FILE, 'utf8');
+    const logs = JSON.parse(logData);
+    
+    // Calculate statistics
+    const totalMembers = data.members.length;
+    const totalSessions = data.sessions.length;
+    const totalUsers = users.length;
+    const superAdmins = users.filter(u => u.role === 'super_admin').length;
+    const admins = users.filter(u => u.role === 'admin').length;
+    const totalAuditLogs = logs.length;
+    
+    // Calculate total hours
+    let totalHours = 0;
+    data.sessions.forEach(session => {
+      session.attendees.forEach(memberCode => {
+        const hours = session.individualHours?.[memberCode] || session.hours || 1;
+        totalHours += hours;
+      });
+    });
+    
+    // Recent activity (last 10 audit logs)
+    const recentActivity = logs.slice(-10).reverse();
+    
+    res.json({
+      totalMembers,
+      totalSessions,
+      totalUsers,
+      superAdmins,
+      admins,
+      totalAuditLogs,
+      totalHours,
+      recentActivity
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch system statistics' });
   }
 });
 
