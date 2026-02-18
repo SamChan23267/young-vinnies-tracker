@@ -746,12 +746,10 @@ if (window.location.pathname.endsWith('export.html')) {
             return;
         }
         
-        const format = document.getElementById('export-format').value;
-        const dateFormat = document.getElementById('date-format').value;
         const memberDisplay = document.getElementById('member-display').value;
         const sessionIds = Array.from(selectedSessions).join(',');
         
-        window.location.href = `/api/export/csv?format=${format}&dateFormat=${dateFormat}&memberDisplay=${memberDisplay}&sessions=${sessionIds}`;
+        window.location.href = `/api/export/csv?memberDisplay=${memberDisplay}&sessions=${sessionIds}`;
         showMessage('Downloading CSV file...', 'success');
     });
     
@@ -764,13 +762,11 @@ if (window.location.pathname.endsWith('export.html')) {
             return;
         }
         
-        const format = document.getElementById('export-format').value;
-        const dateFormat = document.getElementById('date-format').value;
         const memberDisplay = document.getElementById('member-display').value;
         const startDate = document.getElementById('date-range-start').value;
         const endDate = document.getElementById('date-range-end').value;
         
-        let url = `/api/export/csv?format=${format}&dateFormat=${dateFormat}&memberDisplay=${memberDisplay}`;
+        let url = `/api/export/csv?memberDisplay=${memberDisplay}`;
         if (startDate) url += `&startDate=${startDate}`;
         if (endDate) url += `&endDate=${endDate}`;
         

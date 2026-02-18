@@ -341,7 +341,7 @@ app.get('/api/sessions', requireAuth, async (req, res) => {
 // POST /api/sessions - Create a new session
 app.post('/api/sessions', requireAuth, async (req, res) => {
   try {
-    const { date, description } = req.body;
+    const { date, description, hours } = req.body;
     
     if (!date || !description) {
       return res.status(400).json({ error: 'Date and description are required' });
@@ -354,7 +354,9 @@ app.post('/api/sessions', requireAuth, async (req, res) => {
       id,
       date,
       description,
-      attendees: []
+      hours: hours || 1, // Default to 1 hour if not specified
+      attendees: [], // Will store member codes
+      individualHours: {} // Object to store individual hour overrides: { memberCode: hours }
     };
     
     data.sessions.push(newSession);
@@ -388,7 +390,7 @@ app.get('/api/sessions/:id', requireAuth, async (req, res) => {
 app.put('/api/sessions/:id/attendance', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const { attendees } = req.body;
+    const { attendees, individualHours } = req.body;
     
     if (!Array.isArray(attendees)) {
       return res.status(400).json({ error: 'Attendees must be an array' });
@@ -402,10 +404,20 @@ app.put('/api/sessions/:id/attendance', requireAuth, async (req, res) => {
     }
     
     data.sessions[sessionIndex].attendees = attendees;
+    
+    // Update individual hours if provided
+    if (individualHours && typeof individualHours === 'object') {
+      if (!data.sessions[sessionIndex].individualHours) {
+        data.sessions[sessionIndex].individualHours = {};
+      }
+      data.sessions[sessionIndex].individualHours = individualHours;
+    }
+    
     await writeData(data);
     await logAudit('UPDATE_ATTENDANCE', {
       sessionId: id,
-      attendees
+      attendees,
+      individualHours
     }, req.session.username);
     
     res.json(data.sessions[sessionIndex]);
@@ -414,11 +426,11 @@ app.put('/api/sessions/:id/attendance', requireAuth, async (req, res) => {
   }
 });
 
-// PUT /api/sessions/:id - Update a session (date, description)
+// PUT /api/sessions/:id - Update a session (date, description, hours)
 app.put('/api/sessions/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const { date, description } = req.body;
+    const { date, description, hours } = req.body;
     
     if (!date || !description) {
       return res.status(400).json({ error: 'Date and description are required' });
@@ -434,6 +446,9 @@ app.put('/api/sessions/:id', requireAuth, async (req, res) => {
     const oldSession = { ...data.sessions[sessionIndex] };
     data.sessions[sessionIndex].date = date;
     data.sessions[sessionIndex].description = description;
+    if (hours !== undefined) {
+      data.sessions[sessionIndex].hours = hours;
+    }
     
     await writeData(data);
     await logAudit('UPDATE_SESSION', {
@@ -474,8 +489,6 @@ app.delete('/api/sessions/:id', requireAuth, async (req, res) => {
 app.get('/api/export/csv', requireAuth, async (req, res) => {
   try {
     const data = await readData();
-    const format = req.query.format || 'horizontal'; // horizontal, vertical, summary
-    const dateFormat = req.query.dateFormat || 'combined'; // combined, separate
     const memberDisplay = req.query.memberDisplay || 'code'; // code, name, both
     const sessionsParam = req.query.sessions; // comma-separated session IDs
     const startDate = req.query.startDate;
@@ -513,116 +526,23 @@ app.get('/api/export/csv', requireAuth, async (req, res) => {
       return memberCode;
     };
     
+    // Simplified format: One row per session with all attendees as columns
+    // Format: "Event (Date)", "MEMBER1", "MEMBER2", "MEMBER3", ...
+    // No headers
     let csv = '';
-    let filename = 'volunteer_hours.csv';
     
-    if (format === 'horizontal') {
-      // Simplified horizontal format: Event, Date (or combined), Member
-      if (dateFormat === 'combined') {
-        const memberHeader = memberDisplay === 'code' ? 'Member Code' : 
-                           memberDisplay === 'name' ? 'Member Name' : 'Member';
-        csv = `Event,${memberHeader}\n`;
-        filteredSessions.forEach(session => {
-          const eventName = `${session.description} (${session.date})`;
-          if (session.attendees.length === 0) {
-            csv += `"${eventName}",""\n`;
-          } else {
-            session.attendees.forEach(attendeeCode => {
-              csv += `"${eventName}","${getMemberDisplay(attendeeCode)}"\n`;
-            });
-          }
-        });
-      } else {
-        // Separate date format
-        const memberHeader = memberDisplay === 'code' ? 'Member Code' : 
-                           memberDisplay === 'name' ? 'Member Name' : 'Member';
-        csv = `Event,Date,${memberHeader}\n`;
-        filteredSessions.forEach(session => {
-          if (session.attendees.length === 0) {
-            csv += `"${session.description}","${session.date}",""\n`;
-          } else {
-            session.attendees.forEach(attendeeCode => {
-              csv += `"${session.description}","${session.date}","${getMemberDisplay(attendeeCode)}"\n`;
-            });
-          }
-        });
-      }
-      filename = 'volunteer_hours_horizontal.csv';
-    } else if (format === 'vertical') {
-      // Vertical format: Members as rows, Sessions as columns
-      const members = data.members;
-      const sessions = filteredSessions;
+    filteredSessions.forEach(session => {
+      const eventName = `${session.description} (${session.date})`;
+      const row = [`"${eventName}"`];
       
-      // Header row
-      if (memberDisplay === 'code') {
-        csv = 'Member Code';
-      } else if (memberDisplay === 'name') {
-        csv = 'Member Name';
-      } else {
-        csv = 'Member Code,Member Name';
-      }
-      
-      if (dateFormat === 'combined') {
-        sessions.forEach(session => {
-          csv += `,"${session.description} (${session.date})"`;
-        });
-      } else {
-        sessions.forEach(session => {
-          csv += `,"${session.description}","Date"`;
-        });
-      }
-      csv += '\n';
-      
-      // Data rows
-      members.forEach(member => {
-        if (memberDisplay === 'code') {
-          csv += `"${member.code}"`;
-        } else if (memberDisplay === 'name') {
-          csv += `"${member.name}"`;
-        } else {
-          csv += `"${member.code}","${member.name}"`;
-        }
-        
-        sessions.forEach(session => {
-          const attended = session.attendees.includes(member.code);
-          if (dateFormat === 'combined') {
-            csv += `,${attended ? 'X' : ''}`;
-          } else {
-            csv += `,${attended ? 'X' : ''},"${attended ? session.date : ''}"`;
-          }
-        });
-        csv += '\n';
+      session.attendees.forEach(attendeeCode => {
+        row.push(`"${getMemberDisplay(attendeeCode)}"`);
       });
-      filename = 'volunteer_hours_vertical.csv';
-    } else if (format === 'summary') {
-      // Summary format: Member totals
-      if (memberDisplay === 'code') {
-        csv = 'Member Code,Total Sessions Attended\n';
-        data.members.forEach(member => {
-          const totalSessions = filteredSessions.filter(session => 
-            session.attendees.includes(member.code)
-          ).length;
-          csv += `"${member.code}",${totalSessions}\n`;
-        });
-      } else if (memberDisplay === 'name') {
-        csv = 'Member Name,Total Sessions Attended\n';
-        data.members.forEach(member => {
-          const totalSessions = filteredSessions.filter(session => 
-            session.attendees.includes(member.code)
-          ).length;
-          csv += `"${member.name}",${totalSessions}\n`;
-        });
-      } else {
-        csv = 'Member Code,Member Name,Total Sessions Attended\n';
-        data.members.forEach(member => {
-          const totalSessions = filteredSessions.filter(session => 
-            session.attendees.includes(member.code)
-          ).length;
-          csv += `"${member.code}","${member.name}",${totalSessions}\n`;
-        });
-      }
-      filename = 'volunteer_hours_summary.csv';
-    }
+      
+      csv += row.join(',') + '\n';
+    });
+    
+    const filename = 'volunteer_hours.csv';
     
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename=${filename}`);

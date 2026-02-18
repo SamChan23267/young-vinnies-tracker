@@ -8,10 +8,9 @@
 </head>
 <body>
     <div class="container">
-        <header class="has-logout">
+        <header>
             <h1>🌟 Young Vinnies Volunteer Hour Tracker</h1>
             <p>Settings</p>
-            <button id="logout-btn" class="btn btn-secondary logout-btn">Logout</button>
         </header>
 
         <!-- Navigation -->
@@ -58,6 +57,15 @@
                     <p><strong>Username:</strong> <span id="user-username">-</span></p>
                     <p><strong>Role:</strong> <span id="user-role">-</span></p>
                     <p><strong>Display Name:</strong> <span id="user-display-name">-</span></p>
+                </div>
+            </section>
+
+            <!-- Logout Section -->
+            <section class="card">
+                <h2>🚪 Session Management</h2>
+                <div class="form-section">
+                    <p>Click the button below to securely log out of your account.</p>
+                    <button id="logout-btn" class="btn btn-danger" style="margin-top: 15px;">Logout</button>
                 </div>
             </section>
         </main>

@@ -8,10 +8,9 @@
 </head>
 <body>
     <div class="container">
-        <header class="has-logout">
+        <header>
             <h1>🌟 Young Vinnies Volunteer Hour Tracker</h1>
             <p>Export volunteer data</p>
-            <button id="logout-btn" class="btn btn-secondary logout-btn">Logout</button>
         </header>
 
         <!-- Navigation -->
@@ -30,7 +29,7 @@
             <!-- Export Section -->
             <section class="card">
                 <h2>📊 Data Export</h2>
-                <p>Download session attendance data in various CSV formats.</p>
+                <p>Download session attendance data. Format: One row per session with all attendees listed.</p>
                 
                 <div class="export-options">
                     <h3>Export Settings</h3>
@@ -40,23 +39,6 @@
                         <select id="export-type" class="form-select">
                             <option value="csv">CSV File</option>
                             <option value="googlesheet">Google Sheet (Coming Soon)</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="export-format">Export Format:</label>
-                        <select id="export-format" class="form-select">
-                            <option value="horizontal">Horizontal (Session per row)</option>
-                            <option value="vertical">Vertical (Member per row)</option>
-                            <option value="summary">Summary (Total attendance)</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="date-format">Date Format:</label>
-                        <select id="date-format" class="form-select">
-                            <option value="combined">Combined with event name</option>
-                            <option value="separate">Separate column</option>
                         </select>
                     </div>
                     
