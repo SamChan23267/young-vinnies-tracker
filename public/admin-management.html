@@ -7,21 +7,26 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <header>
-        <h1>🔐 User Management</h1>
-        <nav>
-            <a href="index.html">🏠 Dashboard</a>
-            <a href="members.html">👥 Members</a>
-            <a href="sessions.html">📅 Sessions</a>
-            <a href="export.html">📊 Export</a>
-            <a href="audit-log.html">📋 Audit Log</a>
-            <a href="admin-management.html" class="active">🔐 Users</a>
-            <a href="settings.html">⚙️ Settings</a>
-        </nav>
-    </header>
+    <div class="container">
+        <header>
+            <h1>🌟 Young Vinnies Volunteer Hour Tracker</h1>
+            <p>User Management</p>
+        </header>
 
-    <main>
-        <div class="container">
+        <!-- Navigation -->
+        <nav class="main-nav">
+            <ul>
+                <li><a href="index.html">🏠 Dashboard</a></li>
+                <li><a href="members.html">👥 Members</a></li>
+                <li><a href="sessions.html">📅 Sessions</a></li>
+                <li><a href="export.html">📊 Export Data</a></li>
+                <li><a href="settings.html">⚙️ Settings</a></li>
+                <li id="nav-audit" style="display: none;"><a href="audit-log.html">🔐 Audit Log</a></li>
+                <li id="nav-admin-management"><a href="admin-management.html" class="active">👤 User Management</a></li>
+            </ul>
+        </nav>
+
+        <main>
             <!-- System Statistics Section -->
             <section class="card">
                 <h2>System Statistics</h2>
@@ -113,8 +118,12 @@
                     <!-- Recent activity will be populated here -->
                 </div>
             </section>
-        </div>
-    </main>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 Young Vinnies Volunteer Hour Tracker</p>
+        </footer>
+    </div>
 
     <!-- Edit User Modal -->
     <div id="edit-user-modal" class="modal">

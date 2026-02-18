@@ -620,14 +620,20 @@ header.has-logout p {
 
 .stat-link {
     margin-top: 15px;
-    color: #667eea;
+    color: #4c51bf;
     text-decoration: none;
     font-weight: 600;
     font-size: 0.9em;
+    background-color: #f7fafc;
+    padding: 8px 16px;
+    border-radius: 6px;
+    transition: all 0.3s;
 }
 
 .stat-link:hover {
-    text-decoration: underline;
+    background-color: #667eea;
+    color: white;
+    text-decoration: none;
 }
 
 /* Quick Actions */
@@ -991,23 +997,31 @@ header.has-logout p {
     margin-top: 20px;
 }
 
-.stat-card {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+.stats-grid .stat-card {
+    background: white;
+    color: #333;
     padding: 20px;
     border-radius: 8px;
     text-align: center;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 2px solid #e2e8f0;
+    transition: transform 0.3s, box-shadow 0.3s;
 }
 
-.stat-card h3 {
+.stats-grid .stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.stats-grid .stat-card h3 {
     font-size: 2em;
     margin-bottom: 5px;
+    color: #667eea;
 }
 
-.stat-card p {
+.stats-grid .stat-card p {
     font-size: 0.9em;
-    opacity: 0.9;
+    color: #666;
 }
 
 .form-grid {
