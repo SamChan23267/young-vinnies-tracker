@@ -29,7 +29,7 @@
             <!-- Export Section -->
             <section class="card">
                 <h2>📊 Data Export</h2>
-                <p>Download session attendance data. Format: One row per session with all attendees listed.</p>
+                <p>Download session attendance data. Members are repeated based on hours worked (e.g., 4 hours = name appears 4 times).</p>
                 
                 <div class="export-options">
                     <h3>Export Settings</h3>
@@ -40,6 +40,15 @@
                             <option value="csv">CSV File</option>
                             <option value="googlesheet">Google Sheet (Coming Soon)</option>
                         </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="orientation">Orientation:</label>
+                        <select id="orientation" class="form-select">
+                            <option value="horizontal">Horizontal (one row per session)</option>
+                            <option value="vertical">Vertical (one row per member per hour)</option>
+                        </select>
+                        <small style="color: #666; display: block; margin-top: 5px;">Members are repeated based on hours worked</small>
                     </div>
                     
                     <div class="form-group">

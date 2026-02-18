@@ -490,6 +490,7 @@ app.get('/api/export/csv', requireAuth, async (req, res) => {
   try {
     const data = await readData();
     const memberDisplay = req.query.memberDisplay || 'code'; // code, name, both
+    const orientation = req.query.orientation || 'horizontal'; // horizontal, vertical
     const sessionsParam = req.query.sessions; // comma-separated session IDs
     const startDate = req.query.startDate;
     const endDate = req.query.endDate;
@@ -526,21 +527,52 @@ app.get('/api/export/csv', requireAuth, async (req, res) => {
       return memberCode;
     };
     
-    // Simplified format: One row per session with all attendees as columns
-    // Format: "Event (Date)", "MEMBER1", "MEMBER2", "MEMBER3", ...
-    // No headers
     let csv = '';
     
-    filteredSessions.forEach(session => {
-      const eventName = `${session.description} (${session.date})`;
-      const row = [`"${eventName}"`];
+    if (orientation === 'horizontal') {
+      // Horizontal format: One row per session with all attendees
+      // Each member repeated for the number of hours they worked
+      // Format: "Event (Date)", "MEMBER1", "MEMBER1", "MEMBER2", ...
       
-      session.attendees.forEach(attendeeCode => {
-        row.push(`"${getMemberDisplay(attendeeCode)}"`);
+      filteredSessions.forEach(session => {
+        const eventName = `${session.description} (${session.date})`;
+        const row = [`"${eventName}"`];
+        
+        session.attendees.forEach(attendeeCode => {
+          const memberHours = (session.individualHours && session.individualHours[attendeeCode]) 
+            ? session.individualHours[attendeeCode] 
+            : (session.hours || 1);
+          
+          // Repeat the member name for the number of hours
+          for (let i = 0; i < memberHours; i++) {
+            row.push(`"${getMemberDisplay(attendeeCode)}"`);
+          }
+        });
+        
+        csv += row.join(',') + '\n';
       });
+    } else if (orientation === 'vertical') {
+      // Vertical format: One row per member per session
+      // Each member repeated for the number of hours they worked
+      // Format: "Event (Date)", "MEMBER1"
+      //         "Event (Date)", "MEMBER1"
+      //         "Event (Date)", "MEMBER2"
       
-      csv += row.join(',') + '\n';
-    });
+      filteredSessions.forEach(session => {
+        const eventName = `${session.description} (${session.date})`;
+        
+        session.attendees.forEach(attendeeCode => {
+          const memberHours = (session.individualHours && session.individualHours[attendeeCode]) 
+            ? session.individualHours[attendeeCode] 
+            : (session.hours || 1);
+          
+          // Create one row per hour for each member
+          for (let i = 0; i < memberHours; i++) {
+            csv += `"${eventName}","${getMemberDisplay(attendeeCode)}"\n`;
+          }
+        });
+      });
+    }
     
     const filename = 'volunteer_hours.csv';
     

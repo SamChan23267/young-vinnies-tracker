@@ -125,9 +125,9 @@ if (window.location.pathname.endsWith('session.html')) {
                             <input 
                                 type="number" 
                                 id="hours-${member.code}" 
-                                min="0.5" 
+                                min="1" 
                                 max="24" 
-                                step="0.5" 
+                                step="1" 
                                 value="${individualHours}"
                                 style="width: 70px; padding: 3px; border: 1px solid #ddd; border-radius: 4px;"
                             >
@@ -824,9 +824,10 @@ if (window.location.pathname.endsWith('export.html')) {
         }
         
         const memberDisplay = document.getElementById('member-display').value;
+        const orientation = document.getElementById('orientation').value;
         const sessionIds = Array.from(selectedSessions).join(',');
         
-        window.location.href = `/api/export/csv?memberDisplay=${memberDisplay}&sessions=${sessionIds}`;
+        window.location.href = `/api/export/csv?memberDisplay=${memberDisplay}&orientation=${orientation}&sessions=${sessionIds}`;
         showMessage('Downloading CSV file...', 'success');
     });
     
@@ -840,10 +841,11 @@ if (window.location.pathname.endsWith('export.html')) {
         }
         
         const memberDisplay = document.getElementById('member-display').value;
+        const orientation = document.getElementById('orientation').value;
         const startDate = document.getElementById('date-range-start').value;
         const endDate = document.getElementById('date-range-end').value;
         
-        let url = `/api/export/csv?memberDisplay=${memberDisplay}`;
+        let url = `/api/export/csv?memberDisplay=${memberDisplay}&orientation=${orientation}`;
         if (startDate) url += `&startDate=${startDate}`;
         if (endDate) url += `&endDate=${endDate}`;
         

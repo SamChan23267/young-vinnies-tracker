@@ -43,8 +43,8 @@
                         </div>
                         <div class="form-group">
                             <label for="session-hours">Hours:</label>
-                            <input type="number" id="session-hours" min="0.5" max="24" step="0.5" value="1" required>
-                            <small style="color: #666; display: block; margin-top: 5px;">Default hours for this session (can be adjusted per member)</small>
+                            <input type="number" id="session-hours" min="1" max="24" step="1" value="1" required>
+                            <small style="color: #666; display: block; margin-top: 5px;">Default hours for this session (whole numbers only)</small>
                         </div>
                         <button type="submit" class="btn btn-primary">Create Session</button>
                     </form>
@@ -94,7 +94,7 @@
                 </div>
                 <div class="form-group">
                     <label for="edit-session-hours">Hours:</label>
-                    <input type="number" id="edit-session-hours" min="0.5" max="24" step="0.5" value="1" required>
+                    <input type="number" id="edit-session-hours" min="1" max="24" step="1" value="1" required>
                 </div>
                 <div class="modal-buttons">
                     <button type="submit" class="btn btn-primary">Save Changes</button>
