@@ -1,16 +1,4 @@
 {
-  "members": [
-    {
-      "name": "Alice Johnson",
-      "code": "ALICEJ"
-    }
-  ],
-  "sessions": [
-    {
-      "id": "1",
-      "date": "2024-03-15",
-      "description": "Community Garden Cleanup",
-      "attendees": []
-    }
-  ]
+  "members": [],
+  "sessions": []
 }

@@ -812,3 +812,163 @@ header.has-logout {
         width: 100%;
     }
 }
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+    background-color: white;
+    margin: 5% auto;
+    padding: 30px;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.modal-close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    line-height: 20px;
+}
+
+.modal-close:hover,
+.modal-close:focus {
+    color: #000;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.modal-buttons .btn {
+    flex: 1;
+}
+
+.modal-cancel {
+    background: #6c757d;
+}
+
+.modal-cancel:hover {
+    background: #5a6268;
+}
+
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    gap: 5px;
+}
+
+.btn-edit {
+    background: #ffc107;
+    color: #000;
+    padding: 6px 12px;
+    font-size: 0.85em;
+}
+
+.btn-edit:hover {
+    background: #e0a800;
+}
+
+.btn-delete {
+    background: #dc3545;
+    color: white;
+    padding: 6px 12px;
+    font-size: 0.85em;
+}
+
+.btn-delete:hover {
+    background: #c82333;
+}
+
+/* Date Range Filter */
+.date-range-filter {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 15px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.date-range-filter label {
+    font-weight: 600;
+    color: #333;
+}
+
+.date-range-filter input[type="date"] {
+    padding: 8px;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+.date-range-filter span {
+    color: #666;
+}
+
+/* Info Section */
+.info-section {
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.info-section p {
+    margin: 10px 0;
+    font-size: 1em;
+}
+
+.info-section strong {
+    color: #333;
+    margin-right: 10px;
+}
+
+/* Session Item Enhancements */
+.session-item {
+    position: relative;
+}
+
+.session-item .action-buttons {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+}
+
+@media (max-width: 768px) {
+    .modal-content {
+        width: 95%;
+        margin: 10% auto;
+        padding: 20px;
+    }
+    
+    .date-range-filter {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+    }
+    
+    .session-item .action-buttons {
+        position: static;
+        margin-top: 10px;
+    }
+}

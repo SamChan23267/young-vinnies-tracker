@@ -338,7 +338,7 @@ if (window.location.pathname.endsWith('members.html')) {
         document.getElementById('member-count').textContent = members.length;
         
         if (members.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="3" class="empty-state"><p>No members yet. Add your first member above!</p></td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><p>No members yet. Add your first member above!</p></td></tr>';
             return;
         }
         
@@ -354,7 +354,14 @@ if (window.location.pathname.endsWith('members.html')) {
             <tr>
                 <td>${member.name}</td>
                 <td><strong>${member.code}</strong></td>
+                <td>${member.yearLevel || '-'}</td>
                 <td>${memberSessions[member.code] || 0}</td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="btn btn-edit" onclick="editMember('${member.code}')">Edit</button>
+                        <button class="btn btn-delete" onclick="deleteMember('${member.code}', '${member.name}')">Delete</button>
+                    </div>
+                </td>
             </tr>
         `).join('');
     }
@@ -364,7 +371,8 @@ if (window.location.pathname.endsWith('members.html')) {
         const searchTerm = e.target.value.toLowerCase();
         const filteredMembers = allMembers.filter(member =>
             member.name.toLowerCase().includes(searchTerm) ||
-            member.code.toLowerCase().includes(searchTerm)
+            member.code.toLowerCase().includes(searchTerm) ||
+            (member.yearLevel && member.yearLevel.toLowerCase().includes(searchTerm))
         );
         displayMembers(filteredMembers);
     });
@@ -373,7 +381,9 @@ if (window.location.pathname.endsWith('members.html')) {
     document.getElementById('add-member-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const nameInput = document.getElementById('member-name');
+        const yearLevelInput = document.getElementById('member-year-level');
         const name = nameInput.value.trim();
+        const yearLevel = yearLevelInput.value.trim();
         
         if (!name) return;
         
@@ -381,14 +391,88 @@ if (window.location.pathname.endsWith('members.html')) {
             const member = await apiCall('/api/members', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name })
+                body: JSON.stringify({ name, yearLevel })
             });
             
             showMessage(`Member "${member.name}" added with code ${member.code}!`, 'success');
             nameInput.value = '';
+            yearLevelInput.value = '';
             loadMembersPage();
         } catch (error) {
             console.error('Error adding member:', error);
+        }
+    });
+    
+    // Edit member modal functions
+    window.editMember = async function(code) {
+        const member = allMembers.find(m => m.code === code);
+        if (!member) return;
+        
+        document.getElementById('edit-member-old-code').value = code;
+        document.getElementById('edit-member-name').value = member.name;
+        document.getElementById('edit-member-code').value = member.code;
+        document.getElementById('edit-member-year-level').value = member.yearLevel || '';
+        
+        document.getElementById('edit-member-modal').style.display = 'block';
+    };
+    
+    // Delete member
+    window.deleteMember = async function(code, name) {
+        if (!confirm(`Are you sure you want to delete member "${name}"? This will also remove them from all session attendance records.`)) {
+            return;
+        }
+        
+        try {
+            await apiCall(`/api/members/${code}`, {
+                method: 'DELETE'
+            });
+            
+            showMessage(`Member "${name}" deleted successfully!`, 'success');
+            loadMembersPage();
+        } catch (error) {
+            console.error('Error deleting member:', error);
+        }
+    };
+    
+    // Edit member form submission
+    document.getElementById('edit-member-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const oldCode = document.getElementById('edit-member-old-code').value;
+        const name = document.getElementById('edit-member-name').value.trim();
+        const newCode = document.getElementById('edit-member-code').value.trim();
+        const yearLevel = document.getElementById('edit-member-year-level').value.trim();
+        
+        if (!name || !newCode) return;
+        
+        try {
+            await apiCall(`/api/members/${oldCode}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, newCode, yearLevel })
+            });
+            
+            showMessage(`Member updated successfully!`, 'success');
+            document.getElementById('edit-member-modal').style.display = 'none';
+            loadMembersPage();
+        } catch (error) {
+            console.error('Error updating member:', error);
+        }
+    });
+    
+    // Modal close handlers
+    document.querySelector('#edit-member-modal .modal-close')?.addEventListener('click', () => {
+        document.getElementById('edit-member-modal').style.display = 'none';
+    });
+    
+    document.querySelector('#edit-member-modal .modal-cancel')?.addEventListener('click', () => {
+        document.getElementById('edit-member-modal').style.display = 'none';
+    });
+    
+    // Close modal when clicking outside
+    window.addEventListener('click', (e) => {
+        const modal = document.getElementById('edit-member-modal');
+        if (e.target === modal) {
+            modal.style.display = 'none';
         }
     });
     
@@ -415,7 +499,7 @@ if (window.location.pathname.endsWith('sessions.html')) {
         document.getElementById('session-count').textContent = sessions.length;
         
         if (sessions.length === 0) {
-            container.innerHTML = '<div class="empty-state"><p>No sessions yet. Create your first session above!</p></div>';
+            container.innerHTML = '<div class="empty-state"><p>No sessions found.</p></div>';
             return;
         }
         
@@ -428,6 +512,10 @@ if (window.location.pathname.endsWith('sessions.html')) {
             
             return `
                 <div class="session-item">
+                    <div class="action-buttons">
+                        <button class="btn btn-edit" onclick="editSession('${session.id}')">Edit</button>
+                        <button class="btn btn-delete" onclick="deleteSession('${session.id}', '${session.description}')">Delete</button>
+                    </div>
                     <h4>${session.description}</h4>
                     <p><strong>Date:</strong> ${new Date(session.date).toLocaleDateString()}</p>
                     <p><strong>Attendance:</strong> ${attendeeText}</p>
@@ -442,14 +530,37 @@ if (window.location.pathname.endsWith('sessions.html')) {
         }).join('');
     }
     
-    // Search functionality
-    document.getElementById('session-search')?.addEventListener('input', (e) => {
-        const searchTerm = e.target.value.toLowerCase();
-        const filteredSessions = allSessions.filter(session =>
+    // Filter sessions with search and date range
+    function filterSessions() {
+        const searchTerm = document.getElementById('session-search').value.toLowerCase();
+        const startDate = document.getElementById('session-start-date').value;
+        const endDate = document.getElementById('session-end-date').value;
+        
+        let filtered = allSessions.filter(session =>
             session.description.toLowerCase().includes(searchTerm) ||
             session.date.includes(searchTerm)
         );
-        displaySessions(filteredSessions);
+        
+        if (startDate) {
+            filtered = filtered.filter(s => new Date(s.date) >= new Date(startDate));
+        }
+        if (endDate) {
+            filtered = filtered.filter(s => new Date(s.date) <= new Date(endDate));
+        }
+        
+        displaySessions(filtered);
+    }
+    
+    // Search functionality
+    document.getElementById('session-search')?.addEventListener('input', filterSessions);
+    document.getElementById('session-start-date')?.addEventListener('change', filterSessions);
+    document.getElementById('session-end-date')?.addEventListener('change', filterSessions);
+    
+    // Clear date filter
+    document.getElementById('clear-date-filter')?.addEventListener('click', () => {
+        document.getElementById('session-start-date').value = '';
+        document.getElementById('session-end-date').value = '';
+        filterSessions();
     });
     
     // Create session form handler
@@ -476,6 +587,77 @@ if (window.location.pathname.endsWith('sessions.html')) {
             loadSessionsPage();
         } catch (error) {
             console.error('Error creating session:', error);
+        }
+    });
+    
+    // Edit session modal functions
+    window.editSession = async function(id) {
+        const session = allSessions.find(s => s.id === id);
+        if (!session) return;
+        
+        document.getElementById('edit-session-id').value = id;
+        document.getElementById('edit-session-date').value = session.date;
+        document.getElementById('edit-session-description').value = session.description;
+        
+        document.getElementById('edit-session-modal').style.display = 'block';
+    };
+    
+    // Delete session
+    window.deleteSession = async function(id, description) {
+        if (!confirm(`Are you sure you want to delete session "${description}"?`)) {
+            return;
+        }
+        
+        try {
+            await apiCall(`/api/sessions/${id}`, {
+                method: 'DELETE'
+            });
+            
+            showMessage(`Session "${description}" deleted successfully!`, 'success');
+            loadSessionsPage();
+        } catch (error) {
+            console.error('Error deleting session:', error);
+        }
+    };
+    
+    // Edit session form submission
+    document.getElementById('edit-session-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('edit-session-id').value;
+        const date = document.getElementById('edit-session-date').value;
+        const description = document.getElementById('edit-session-description').value.trim();
+        
+        if (!date || !description) return;
+        
+        try {
+            await apiCall(`/api/sessions/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date, description })
+            });
+            
+            showMessage(`Session updated successfully!`, 'success');
+            document.getElementById('edit-session-modal').style.display = 'none';
+            loadSessionsPage();
+        } catch (error) {
+            console.error('Error updating session:', error);
+        }
+    });
+    
+    // Modal close handlers
+    document.querySelector('#edit-session-modal .modal-close')?.addEventListener('click', () => {
+        document.getElementById('edit-session-modal').style.display = 'none';
+    });
+    
+    document.querySelector('#edit-session-modal .modal-cancel')?.addEventListener('click', () => {
+        document.getElementById('edit-session-modal').style.display = 'none';
+    });
+    
+    // Close modal when clicking outside
+    window.addEventListener('click', (e) => {
+        const modal = document.getElementById('edit-session-modal');
+        if (e.target === modal) {
+            modal.style.display = 'none';
         }
     });
     
@@ -581,4 +763,57 @@ if (window.location.pathname.endsWith('export.html')) {
     });
     
     loadExportSessions();
+}
+
+// Settings Page
+if (window.location.pathname.endsWith('settings.html')) {
+    // Load user info
+    async function loadUserInfo() {
+        try {
+            const response = await fetch('/api/check-auth');
+            const data = await response.json();
+            
+            if (data.authenticated) {
+                document.getElementById('user-username').textContent = data.username;
+                document.getElementById('user-role').textContent = data.role === 'super_admin' ? 'Super Admin' : 'Admin';
+                document.getElementById('user-display-name').textContent = data.displayName || data.username;
+            }
+        } catch (error) {
+            console.error('Error loading user info:', error);
+        }
+    }
+    
+    // Change password form handler
+    document.getElementById('change-password-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const currentPassword = document.getElementById('current-password').value;
+        const newPassword = document.getElementById('new-password').value;
+        const confirmPassword = document.getElementById('confirm-password').value;
+        
+        if (newPassword !== confirmPassword) {
+            showMessage('New passwords do not match', 'error');
+            return;
+        }
+        
+        if (newPassword.length < 6) {
+            showMessage('New password must be at least 6 characters long', 'error');
+            return;
+        }
+        
+        try {
+            await apiCall('/api/change-password', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ currentPassword, newPassword })
+            });
+            
+            showMessage('Password changed successfully!', 'success');
+            document.getElementById('change-password-form').reset();
+        } catch (error) {
+            console.error('Error changing password:', error);
+        }
+    });
+    
+    loadUserInfo();
 }

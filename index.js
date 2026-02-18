@@ -31,7 +31,7 @@ app.use((req, res, next) => {
   }
   
   // For main pages, check authentication
-  const protectedPages = ['/', '/index.html', '/session.html', '/audit-log.html', '/members.html', '/sessions.html', '/export.html'];
+  const protectedPages = ['/', '/index.html', '/session.html', '/audit-log.html', '/members.html', '/sessions.html', '/export.html', '/settings.html'];
   if (protectedPages.includes(req.path)) {
     if (!req.session.authenticated) {
       return res.redirect('/login.html');
@@ -218,7 +218,7 @@ app.get('/api/members', requireAuth, async (req, res) => {
 // POST /api/members - Add a new member
 app.post('/api/members', requireAuth, async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, yearLevel } = req.body;
     
     if (!name || name.trim() === '') {
       return res.status(400).json({ error: 'Name is required' });
@@ -230,7 +230,8 @@ app.post('/api/members', requireAuth, async (req, res) => {
     
     const newMember = {
       name: name.trim(),
-      code
+      code,
+      yearLevel: yearLevel || ''
     };
     
     data.members.push(newMember);
@@ -240,6 +241,90 @@ app.post('/api/members', requireAuth, async (req, res) => {
     res.status(201).json(newMember);
   } catch (error) {
     res.status(500).json({ error: 'Failed to add member' });
+  }
+});
+
+// PUT /api/members/:code - Update a member
+app.put('/api/members/:code', requireAuth, async (req, res) => {
+  try {
+    const { code } = req.params;
+    const { name, newCode, yearLevel } = req.body;
+    
+    if (!name || name.trim() === '') {
+      return res.status(400).json({ error: 'Name is required' });
+    }
+    
+    const data = await readData();
+    const memberIndex = data.members.findIndex(m => m.code === code);
+    
+    if (memberIndex === -1) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+    
+    // Check if new code conflicts with existing codes (excluding current member)
+    if (newCode && newCode !== code) {
+      const codeExists = data.members.some((m, idx) => idx !== memberIndex && m.code === newCode);
+      if (codeExists) {
+        return res.status(400).json({ error: 'Code already exists' });
+      }
+    }
+    
+    const oldMember = { ...data.members[memberIndex] };
+    const updatedCode = newCode || code;
+    
+    // Update member
+    data.members[memberIndex] = {
+      name: name.trim(),
+      code: updatedCode,
+      yearLevel: yearLevel || ''
+    };
+    
+    // If code changed, update attendee lists in sessions
+    if (updatedCode !== code) {
+      data.sessions.forEach(session => {
+        const attendeeIndex = session.attendees.indexOf(code);
+        if (attendeeIndex !== -1) {
+          session.attendees[attendeeIndex] = updatedCode;
+        }
+      });
+    }
+    
+    await writeData(data);
+    await logAudit('UPDATE_MEMBER', { old: oldMember, new: data.members[memberIndex] }, req.session.username);
+    
+    res.json(data.members[memberIndex]);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update member' });
+  }
+});
+
+// DELETE /api/members/:code - Delete a member
+app.delete('/api/members/:code', requireAuth, async (req, res) => {
+  try {
+    const { code } = req.params;
+    const data = await readData();
+    const memberIndex = data.members.findIndex(m => m.code === code);
+    
+    if (memberIndex === -1) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+    
+    const deletedMember = data.members[memberIndex];
+    
+    // Remove member from all session attendee lists
+    data.sessions.forEach(session => {
+      session.attendees = session.attendees.filter(attendeeCode => attendeeCode !== code);
+    });
+    
+    // Remove member
+    data.members.splice(memberIndex, 1);
+    
+    await writeData(data);
+    await logAudit('DELETE_MEMBER', deletedMember, req.session.username);
+    
+    res.json({ success: true, message: 'Member deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete member' });
   }
 });
 
@@ -326,6 +411,62 @@ app.put('/api/sessions/:id/attendance', requireAuth, async (req, res) => {
     res.json(data.sessions[sessionIndex]);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update attendance' });
+  }
+});
+
+// PUT /api/sessions/:id - Update a session (date, description)
+app.put('/api/sessions/:id', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { date, description } = req.body;
+    
+    if (!date || !description) {
+      return res.status(400).json({ error: 'Date and description are required' });
+    }
+    
+    const data = await readData();
+    const sessionIndex = data.sessions.findIndex(s => s.id === id);
+    
+    if (sessionIndex === -1) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    
+    const oldSession = { ...data.sessions[sessionIndex] };
+    data.sessions[sessionIndex].date = date;
+    data.sessions[sessionIndex].description = description;
+    
+    await writeData(data);
+    await logAudit('UPDATE_SESSION', {
+      old: oldSession,
+      new: data.sessions[sessionIndex]
+    }, req.session.username);
+    
+    res.json(data.sessions[sessionIndex]);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update session' });
+  }
+});
+
+// DELETE /api/sessions/:id - Delete a session
+app.delete('/api/sessions/:id', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const data = await readData();
+    const sessionIndex = data.sessions.findIndex(s => s.id === id);
+    
+    if (sessionIndex === -1) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    
+    const deletedSession = data.sessions[sessionIndex];
+    data.sessions.splice(sessionIndex, 1);
+    
+    await writeData(data);
+    await logAudit('DELETE_SESSION', deletedSession, req.session.username);
+    
+    res.json({ success: true, message: 'Session deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete session' });
   }
 });
 
@@ -447,6 +588,43 @@ app.get('/api/audit-log', requireSuperAdmin, async (req, res) => {
     res.json(logs);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch audit log' });
+  }
+});
+
+// PUT /api/change-password - Change user password
+app.put('/api/change-password', requireAuth, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current password and new password are required' });
+    }
+    
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters long' });
+    }
+    
+    const users = await readUsers();
+    const userIndex = users.findIndex(u => u.username === req.session.username);
+    
+    if (userIndex === -1) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Verify current password
+    if (users[userIndex].password !== currentPassword) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+    
+    // Update password
+    users[userIndex].password = newPassword;
+    await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
+    
+    await logAudit('CHANGE_PASSWORD', { username: req.session.username }, req.session.username);
+    
+    res.json({ success: true, message: 'Password changed successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to change password' });
   }
 });
 

@@ -21,6 +21,7 @@
                 <li><a href="members.html">👥 Members</a></li>
                 <li><a href="sessions.html" class="active">📅 Sessions</a></li>
                 <li><a href="export.html">📊 Export Data</a></li>
+                <li><a href="settings.html">⚙️ Settings</a></li>
                 <li id="nav-audit" style="display: none;"><a href="audit-log.html">🔐 Audit Log</a></li>
             </ul>
         </nav>
@@ -46,7 +47,14 @@
                 </div>
 
                 <div class="search-section">
-                    <input type="text" id="session-search" class="search-input" placeholder="🔍 Search sessions...">
+                    <input type="text" id="session-search" class="search-input" placeholder="🔍 Search sessions by description or date...">
+                    <div class="date-range-filter">
+                        <label>Date Range:</label>
+                        <input type="date" id="session-start-date" placeholder="Start date">
+                        <span>to</span>
+                        <input type="date" id="session-end-date" placeholder="End date">
+                        <button id="clear-date-filter" class="btn btn-secondary">Clear</button>
+                    </div>
                 </div>
 
                 <div class="table-section">
@@ -63,6 +71,29 @@
         <footer>
             <p>&copy; 2024 Young Vinnies Volunteer Hour Tracker</p>
         </footer>
+    </div>
+
+    <!-- Edit Session Modal -->
+    <div id="edit-session-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <h2>Edit Session</h2>
+            <form id="edit-session-form">
+                <input type="hidden" id="edit-session-id">
+                <div class="form-group">
+                    <label for="edit-session-date">Session Date:</label>
+                    <input type="date" id="edit-session-date" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-session-description">Description:</label>
+                    <input type="text" id="edit-session-description" required>
+                </div>
+                <div class="modal-buttons">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="button" class="btn btn-secondary modal-cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <div id="message-container"></div>

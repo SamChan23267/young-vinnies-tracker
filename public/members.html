@@ -21,6 +21,7 @@
                 <li><a href="members.html" class="active">👥 Members</a></li>
                 <li><a href="sessions.html">📅 Sessions</a></li>
                 <li><a href="export.html">📊 Export Data</a></li>
+                <li><a href="settings.html">⚙️ Settings</a></li>
                 <li id="nav-audit" style="display: none;"><a href="audit-log.html">🔐 Audit Log</a></li>
             </ul>
         </nav>
@@ -35,7 +36,11 @@
                     <form id="add-member-form">
                         <div class="form-group">
                             <label for="member-name">Member Name:</label>
-                            <input type="text" id="member-name" required placeholder="e.g., Mathis Lam">
+                            <input type="text" id="member-name" required placeholder="Enter member name">
+                        </div>
+                        <div class="form-group">
+                            <label for="member-year-level">Year Level:</label>
+                            <input type="text" id="member-year-level" placeholder="e.g., Year 10, Grade 11">
                         </div>
                         <button type="submit" class="btn btn-primary">Add Member</button>
                     </form>
@@ -53,7 +58,9 @@
                                 <tr>
                                     <th>Name</th>
                                     <th>Code</th>
+                                    <th>Year Level</th>
                                     <th>Sessions Attended</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="members-tbody">
@@ -68,6 +75,33 @@
         <footer>
             <p>&copy; 2024 Young Vinnies Volunteer Hour Tracker</p>
         </footer>
+    </div>
+
+    <!-- Edit Member Modal -->
+    <div id="edit-member-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <h2>Edit Member</h2>
+            <form id="edit-member-form">
+                <input type="hidden" id="edit-member-old-code">
+                <div class="form-group">
+                    <label for="edit-member-name">Member Name:</label>
+                    <input type="text" id="edit-member-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-member-code">Member Code:</label>
+                    <input type="text" id="edit-member-code" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-member-year-level">Year Level:</label>
+                    <input type="text" id="edit-member-year-level">
+                </div>
+                <div class="modal-buttons">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="button" class="btn btn-secondary modal-cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <div id="message-container"></div>
