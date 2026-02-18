@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Members - Young Vinnies Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="has-logout">
+            <h1>🌟 Young Vinnies Volunteer Hour Tracker</h1>
+            <p>Manage volunteer members</p>
+            <button id="logout-btn" class="btn btn-secondary logout-btn">Logout</button>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="main-nav">
+            <ul>
+                <li><a href="index.html">🏠 Dashboard</a></li>
+                <li><a href="members.html" class="active">👥 Members</a></li>
+                <li><a href="sessions.html">📅 Sessions</a></li>
+                <li><a href="export.html">📊 Export Data</a></li>
+                <li id="nav-audit" style="display: none;"><a href="audit-log.html">🔐 Audit Log</a></li>
+            </ul>
+        </nav>
+
+        <main>
+            <!-- Member Management Section -->
+            <section class="card">
+                <h2>👥 Member Management</h2>
+                
+                <div class="form-section">
+                    <h3>Add New Member</h3>
+                    <form id="add-member-form">
+                        <div class="form-group">
+                            <label for="member-name">Member Name:</label>
+                            <input type="text" id="member-name" required placeholder="e.g., Mathis Lam">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Add Member</button>
+                    </form>
+                </div>
+
+                <div class="search-section">
+                    <input type="text" id="member-search" class="search-input" placeholder="🔍 Search members...">
+                </div>
+
+                <div class="table-section">
+                    <h3>Current Members (<span id="member-count">0</span>)</h3>
+                    <div id="members-table-container">
+                        <table id="members-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Code</th>
+                                    <th>Sessions Attended</th>
+                                </tr>
+                            </thead>
+                            <tbody id="members-tbody">
+                                <!-- Members will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 Young Vinnies Volunteer Hour Tracker</p>
+        </footer>
+    </div>
+
+    <div id="message-container"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>

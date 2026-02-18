@@ -59,154 +59,8 @@ async function apiCall(url, options = {}) {
     }
 }
 
-// Index Page Functions
-if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/') {
-    
-    // Check authentication and user role
-    async function checkAuthAndRole() {
-        try {
-            const response = await fetch('/api/check-auth');
-            const data = await response.json();
-            if (!data.authenticated) {
-                window.location.href = '/login.html';
-            } else {
-                // Show admin section if super admin
-                if (data.role === 'super_admin') {
-                    document.getElementById('admin-section').style.display = 'block';
-                }
-            }
-        } catch (error) {
-            console.error('Auth check failed:', error);
-            window.location.href = '/login.html';
-        }
-    }
-    
-    checkAuthAndRole();
-    
-    // Add logout button handler
-    document.getElementById('logout-btn')?.addEventListener('click', logout);
-    
-    // Load members
-    async function loadMembers() {
-        try {
-            const members = await fetch('/api/members').then(res => res.json());
-            const tbody = document.getElementById('members-tbody');
-            
-            if (members.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="2" class="empty-state"><p>No members yet. Add your first member above!</p></td></tr>';
-                return;
-            }
-            
-            tbody.innerHTML = members.map(member => `
-                <tr>
-                    <td>${member.name}</td>
-                    <td><strong>${member.code}</strong></td>
-                </tr>
-            `).join('');
-        } catch (error) {
-            console.error('Error loading members:', error);
-        }
-    }
-
-    // Add member form handler
-    document.getElementById('add-member-form')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const nameInput = document.getElementById('member-name');
-        const name = nameInput.value.trim();
-        
-        if (!name) return;
-        
-        try {
-            const member = await apiCall('/api/members', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name })
-            });
-            
-            showMessage(`Member "${member.name}" added with code ${member.code}!`, 'success');
-            nameInput.value = '';
-            loadMembers();
-        } catch (error) {
-            console.error('Error adding member:', error);
-        }
-    });
-
-    // Load sessions
-    async function loadSessions() {
-        try {
-            const sessions = await fetch('/api/sessions').then(res => res.json());
-            const container = document.getElementById('sessions-list');
-            
-            if (sessions.length === 0) {
-                container.innerHTML = '<div class="empty-state"><p>No sessions yet. Create your first session above!</p></div>';
-                return;
-            }
-            
-            // Sort sessions by date (most recent first)
-            sessions.sort((a, b) => new Date(b.date) - new Date(a.date));
-            
-            container.innerHTML = sessions.map(session => {
-                const attendeeCount = session.attendees.length;
-                const attendeeText = attendeeCount === 1 ? '1 attendee' : `${attendeeCount} attendees`;
-                
-                return `
-                    <div class="session-item">
-                        <h4>${session.description}</h4>
-                        <p><strong>Date:</strong> ${new Date(session.date).toLocaleDateString()}</p>
-                        <p><strong>Attendance:</strong> ${attendeeText}</p>
-                        ${session.attendees.length > 0 ? `
-                            <div class="attendees">
-                                <strong>Attendees:</strong> ${session.attendees.join(', ')}
-                            </div>
-                        ` : ''}
-                        <a href="session.html?id=${session.id}" class="btn btn-info">View/Edit Attendance</a>
-                    </div>
-                `;
-            }).join('');
-        } catch (error) {
-            console.error('Error loading sessions:', error);
-        }
-    }
-
-    // Create session form handler
-    document.getElementById('create-session-form')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const dateInput = document.getElementById('session-date');
-        const descriptionInput = document.getElementById('session-description');
-        
-        const date = dateInput.value;
-        const description = descriptionInput.value.trim();
-        
-        if (!date || !description) return;
-        
-        try {
-            const session = await apiCall('/api/sessions', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ date, description })
-            });
-            
-            showMessage(`Session "${session.description}" created!`, 'success');
-            dateInput.value = '';
-            descriptionInput.value = '';
-            loadSessions();
-        } catch (error) {
-            console.error('Error creating session:', error);
-        }
-    });
-
-    // Export CSV button handler
-    document.getElementById('export-csv-btn')?.addEventListener('click', () => {
-        const format = document.getElementById('export-format').value;
-        const dateFormat = document.getElementById('date-format').value;
-        window.location.href = `/api/export/csv?format=${format}&dateFormat=${dateFormat}`;
-        showMessage('Downloading CSV file...', 'success');
-    });
-
-    // Initialize index page
-    loadMembers();
-    loadSessions();
-}
+// Old Index Page code - REMOVED, now handled by Dashboard section below
+// The new index.html is a dashboard, not a form page
 
 // Session Page Functions
 if (window.location.pathname.endsWith('session.html')) {
@@ -354,4 +208,377 @@ if (window.location.pathname.endsWith('audit-log.html')) {
     
     // Initialize audit log page
     loadAuditLog();
+}
+
+// Common initialization for all pages (except login)
+if (!window.location.pathname.endsWith('login.html')) {
+    // Show audit link in nav for super admins
+    async function initNav() {
+        try {
+            const response = await fetch('/api/check-auth');
+            const data = await response.json();
+            if (data.role === 'super_admin') {
+                const navAudit = document.getElementById('nav-audit');
+                if (navAudit) {
+                    navAudit.style.display = 'block';
+                }
+            }
+        } catch (error) {
+            console.error('Nav init failed:', error);
+        }
+    }
+    initNav();
+}
+
+// Dashboard Page (index.html)
+if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/') {
+    // Load dashboard data
+    async function loadDashboardData() {
+        try {
+            const [members, sessions] = await Promise.all([
+                fetch('/api/members').then(res => res.json()),
+                fetch('/api/sessions').then(res => res.json())
+            ]);
+            
+            // Calculate statistics
+            const totalMembers = members.length;
+            const totalSessions = sessions.length;
+            let totalAttendances = 0;
+            sessions.forEach(session => {
+                totalAttendances += session.attendees.length;
+            });
+            const avgAttendance = totalSessions > 0 ? Math.round(totalAttendances / totalSessions) : 0;
+            
+            // Update stat cards
+            document.getElementById('total-members').textContent = totalMembers;
+            document.getElementById('total-sessions').textContent = totalSessions;
+            document.getElementById('total-attendances').textContent = totalAttendances;
+            document.getElementById('avg-attendance').textContent = avgAttendance;
+            
+            // Load recent sessions (last 5)
+            const recentSessions = sessions.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+            const recentSessionsContainer = document.getElementById('recent-sessions-list');
+            
+            if (recentSessions.length === 0) {
+                recentSessionsContainer.innerHTML = '<p class="empty-state">No sessions yet. <a href="sessions.html">Create your first session</a>!</p>';
+            } else {
+                recentSessionsContainer.innerHTML = recentSessions.map(session => `
+                    <div class="recent-session-item">
+                        <h4>${session.description}</h4>
+                        <p>Date: ${new Date(session.date).toLocaleDateString()}</p>
+                        <p>Attendees: ${session.attendees.length}</p>
+                    </div>
+                `).join('');
+            }
+            
+            // Load top volunteers
+            const memberAttendance = {};
+            members.forEach(member => {
+                memberAttendance[member.code] = {
+                    name: member.name,
+                    code: member.code,
+                    count: 0
+                };
+            });
+            
+            sessions.forEach(session => {
+                session.attendees.forEach(code => {
+                    if (memberAttendance[code]) {
+                        memberAttendance[code].count++;
+                    }
+                });
+            });
+            
+            const topVolunteers = Object.values(memberAttendance)
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 5);
+            
+            const topVolunteersContainer = document.getElementById('top-volunteers-list');
+            
+            if (topVolunteers.length === 0 || topVolunteers[0].count === 0) {
+                topVolunteersContainer.innerHTML = '<p class="empty-state">No attendance data yet.</p>';
+            } else {
+                topVolunteersContainer.innerHTML = topVolunteers.map(volunteer => `
+                    <div class="top-volunteer-item">
+                        <h4>${volunteer.name} (${volunteer.code})</h4>
+                        <p>Sessions attended: ${volunteer.count}</p>
+                    </div>
+                `).join('');
+            }
+        } catch (error) {
+            console.error('Error loading dashboard data:', error);
+        }
+    }
+    
+    loadDashboardData();
+}
+
+// Members Page
+if (window.location.pathname.endsWith('members.html')) {
+    let allMembers = [];
+    let allSessions = [];
+    
+    // Load members
+    async function loadMembersPage() {
+        try {
+            [allMembers, allSessions] = await Promise.all([
+                fetch('/api/members').then(res => res.json()),
+                fetch('/api/sessions').then(res => res.json())
+            ]);
+            
+            displayMembers(allMembers);
+        } catch (error) {
+            console.error('Error loading members:', error);
+        }
+    }
+    
+    // Display members
+    function displayMembers(members) {
+        const tbody = document.getElementById('members-tbody');
+        document.getElementById('member-count').textContent = members.length;
+        
+        if (members.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" class="empty-state"><p>No members yet. Add your first member above!</p></td></tr>';
+            return;
+        }
+        
+        // Calculate sessions attended for each member
+        const memberSessions = {};
+        allSessions.forEach(session => {
+            session.attendees.forEach(code => {
+                memberSessions[code] = (memberSessions[code] || 0) + 1;
+            });
+        });
+        
+        tbody.innerHTML = members.map(member => `
+            <tr>
+                <td>${member.name}</td>
+                <td><strong>${member.code}</strong></td>
+                <td>${memberSessions[member.code] || 0}</td>
+            </tr>
+        `).join('');
+    }
+    
+    // Search functionality
+    document.getElementById('member-search')?.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase();
+        const filteredMembers = allMembers.filter(member =>
+            member.name.toLowerCase().includes(searchTerm) ||
+            member.code.toLowerCase().includes(searchTerm)
+        );
+        displayMembers(filteredMembers);
+    });
+    
+    // Add member form handler
+    document.getElementById('add-member-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const nameInput = document.getElementById('member-name');
+        const name = nameInput.value.trim();
+        
+        if (!name) return;
+        
+        try {
+            const member = await apiCall('/api/members', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+            
+            showMessage(`Member "${member.name}" added with code ${member.code}!`, 'success');
+            nameInput.value = '';
+            loadMembersPage();
+        } catch (error) {
+            console.error('Error adding member:', error);
+        }
+    });
+    
+    loadMembersPage();
+}
+
+// Sessions Page
+if (window.location.pathname.endsWith('sessions.html')) {
+    let allSessions = [];
+    
+    // Load sessions
+    async function loadSessionsPage() {
+        try {
+            allSessions = await fetch('/api/sessions').then(res => res.json());
+            displaySessions(allSessions);
+        } catch (error) {
+            console.error('Error loading sessions:', error);
+        }
+    }
+    
+    // Display sessions
+    function displaySessions(sessions) {
+        const container = document.getElementById('sessions-list');
+        document.getElementById('session-count').textContent = sessions.length;
+        
+        if (sessions.length === 0) {
+            container.innerHTML = '<div class="empty-state"><p>No sessions yet. Create your first session above!</p></div>';
+            return;
+        }
+        
+        // Sort sessions by date (most recent first)
+        sessions.sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        container.innerHTML = sessions.map(session => {
+            const attendeeCount = session.attendees.length;
+            const attendeeText = attendeeCount === 1 ? '1 attendee' : `${attendeeCount} attendees`;
+            
+            return `
+                <div class="session-item">
+                    <h4>${session.description}</h4>
+                    <p><strong>Date:</strong> ${new Date(session.date).toLocaleDateString()}</p>
+                    <p><strong>Attendance:</strong> ${attendeeText}</p>
+                    ${session.attendees.length > 0 ? `
+                        <div class="attendees">
+                            <strong>Attendees:</strong> ${session.attendees.join(', ')}
+                        </div>
+                    ` : ''}
+                    <a href="session.html?id=${session.id}" class="btn btn-info">View/Edit Attendance</a>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    // Search functionality
+    document.getElementById('session-search')?.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase();
+        const filteredSessions = allSessions.filter(session =>
+            session.description.toLowerCase().includes(searchTerm) ||
+            session.date.includes(searchTerm)
+        );
+        displaySessions(filteredSessions);
+    });
+    
+    // Create session form handler
+    document.getElementById('create-session-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const dateInput = document.getElementById('session-date');
+        const descriptionInput = document.getElementById('session-description');
+        
+        const date = dateInput.value;
+        const description = descriptionInput.value.trim();
+        
+        if (!date || !description) return;
+        
+        try {
+            const session = await apiCall('/api/sessions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date, description })
+            });
+            
+            showMessage(`Session "${session.description}" created!`, 'success');
+            dateInput.value = '';
+            descriptionInput.value = '';
+            loadSessionsPage();
+        } catch (error) {
+            console.error('Error creating session:', error);
+        }
+    });
+    
+    loadSessionsPage();
+}
+
+// Export Page
+if (window.location.pathname.endsWith('export.html')) {
+    let allSessions = [];
+    let selectedSessions = new Set();
+    
+    // Load sessions for export
+    async function loadExportSessions() {
+        try {
+            allSessions = await fetch('/api/sessions').then(res => res.json());
+            displaySessionCheckboxes();
+        } catch (error) {
+            console.error('Error loading sessions:', error);
+        }
+    }
+    
+    // Display session checkboxes
+    function displaySessionCheckboxes() {
+        const container = document.getElementById('session-selection-list');
+        
+        if (allSessions.length === 0) {
+            container.innerHTML = '<p class="empty-state">No sessions available to export.</p>';
+            return;
+        }
+        
+        // Sort by date
+        allSessions.sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        container.innerHTML = allSessions.map(session => `
+            <div class="session-checkbox-item">
+                <input type="checkbox" id="session-${session.id}" value="${session.id}" checked>
+                <label for="session-${session.id}" class="session-checkbox-label">
+                    <strong>${session.description}</strong>
+                    <span>${new Date(session.date).toLocaleDateString()} - ${session.attendees.length} attendees</span>
+                </label>
+            </div>
+        `).join('');
+        
+        // Initialize all as selected
+        allSessions.forEach(session => selectedSessions.add(session.id));
+        
+        // Add change listeners
+        container.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    selectedSessions.add(e.target.value);
+                } else {
+                    selectedSessions.delete(e.target.value);
+                }
+            });
+        });
+    }
+    
+    // Select all sessions
+    document.getElementById('select-all-sessions')?.addEventListener('click', () => {
+        document.querySelectorAll('#session-selection-list input[type="checkbox"]').forEach(cb => {
+            cb.checked = true;
+            selectedSessions.add(cb.value);
+        });
+    });
+    
+    // Deselect all sessions
+    document.getElementById('deselect-all-sessions')?.addEventListener('click', () => {
+        document.querySelectorAll('#session-selection-list input[type="checkbox"]').forEach(cb => {
+            cb.checked = false;
+            selectedSessions.delete(cb.value);
+        });
+    });
+    
+    // Export selected sessions
+    document.getElementById('export-selected-btn')?.addEventListener('click', () => {
+        if (selectedSessions.size === 0) {
+            showMessage('Please select at least one session to export', 'error');
+            return;
+        }
+        
+        const format = document.getElementById('export-format').value;
+        const dateFormat = document.getElementById('date-format').value;
+        const sessionIds = Array.from(selectedSessions).join(',');
+        
+        window.location.href = `/api/export/csv?format=${format}&dateFormat=${dateFormat}&sessions=${sessionIds}`;
+        showMessage('Downloading CSV file...', 'success');
+    });
+    
+    // Export all sessions
+    document.getElementById('export-all-btn')?.addEventListener('click', () => {
+        const format = document.getElementById('export-format').value;
+        const dateFormat = document.getElementById('date-format').value;
+        const startDate = document.getElementById('date-range-start').value;
+        const endDate = document.getElementById('date-range-end').value;
+        
+        let url = `/api/export/csv?format=${format}&dateFormat=${dateFormat}`;
+        if (startDate) url += `&startDate=${startDate}`;
+        if (endDate) url += `&endDate=${endDate}`;
+        
+        window.location.href = url;
+        showMessage('Downloading CSV file...', 'success');
+    });
+    
+    loadExportSessions();
 }

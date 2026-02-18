@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sessions - Young Vinnies Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="has-logout">
+            <h1>🌟 Young Vinnies Volunteer Hour Tracker</h1>
+            <p>Manage volunteer sessions</p>
+            <button id="logout-btn" class="btn btn-secondary logout-btn">Logout</button>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="main-nav">
+            <ul>
+                <li><a href="index.html">🏠 Dashboard</a></li>
+                <li><a href="members.html">👥 Members</a></li>
+                <li><a href="sessions.html" class="active">📅 Sessions</a></li>
+                <li><a href="export.html">📊 Export Data</a></li>
+                <li id="nav-audit" style="display: none;"><a href="audit-log.html">🔐 Audit Log</a></li>
+            </ul>
+        </nav>
+
+        <main>
+            <!-- Session Management Section -->
+            <section class="card">
+                <h2>📅 Session Management</h2>
+                
+                <div class="form-section">
+                    <h3>Create New Session</h3>
+                    <form id="create-session-form">
+                        <div class="form-group">
+                            <label for="session-date">Session Date:</label>
+                            <input type="date" id="session-date" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="session-description">Description:</label>
+                            <input type="text" id="session-description" required placeholder="e.g., Beach Cleanup at Mission Bay">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Create Session</button>
+                    </form>
+                </div>
+
+                <div class="search-section">
+                    <input type="text" id="session-search" class="search-input" placeholder="🔍 Search sessions...">
+                </div>
+
+                <div class="table-section">
+                    <h3>All Sessions (<span id="session-count">0</span>)</h3>
+                    <div id="sessions-list-container">
+                        <div id="sessions-list">
+                            <!-- Sessions will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 Young Vinnies Volunteer Hour Tracker</p>
+        </footer>
+    </div>
+
+    <div id="message-container"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>

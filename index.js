@@ -31,7 +31,8 @@ app.use((req, res, next) => {
   }
   
   // For main pages, check authentication
-  if (req.path === '/' || req.path === '/index.html' || req.path === '/session.html' || req.path === '/audit-log.html') {
+  const protectedPages = ['/', '/index.html', '/session.html', '/audit-log.html', '/members.html', '/sessions.html', '/export.html'];
+  if (protectedPages.includes(req.path)) {
     if (!req.session.authenticated) {
       return res.redirect('/login.html');
     }
@@ -334,6 +335,26 @@ app.get('/api/export/csv', requireAuth, async (req, res) => {
     const data = await readData();
     const format = req.query.format || 'horizontal'; // horizontal, vertical, summary
     const dateFormat = req.query.dateFormat || 'combined'; // combined, separate
+    const sessionsParam = req.query.sessions; // comma-separated session IDs
+    const startDate = req.query.startDate;
+    const endDate = req.query.endDate;
+    
+    // Filter sessions based on parameters
+    let filteredSessions = data.sessions;
+    
+    // Filter by specific session IDs if provided
+    if (sessionsParam) {
+      const sessionIds = sessionsParam.split(',');
+      filteredSessions = filteredSessions.filter(s => sessionIds.includes(s.id));
+    }
+    
+    // Filter by date range if provided
+    if (startDate) {
+      filteredSessions = filteredSessions.filter(s => new Date(s.date) >= new Date(startDate));
+    }
+    if (endDate) {
+      filteredSessions = filteredSessions.filter(s => new Date(s.date) <= new Date(endDate));
+    }
     
     let csv = '';
     let filename = 'volunteer_hours.csv';
@@ -342,7 +363,7 @@ app.get('/api/export/csv', requireAuth, async (req, res) => {
       // Horizontal format: Session Date, Session Description, Attended Member Codes
       if (dateFormat === 'combined') {
         csv = 'Session Date,Session Description,Attended Member Codes\n';
-        data.sessions.forEach(session => {
+        filteredSessions.forEach(session => {
           if (session.attendees.length === 0) {
             csv += `"${session.date}","${session.description}",""\n`;
           } else {
@@ -354,7 +375,7 @@ app.get('/api/export/csv', requireAuth, async (req, res) => {
       } else {
         // Separate date format
         csv = 'Event Name,Session Date,Attended Member Codes\n';
-        data.sessions.forEach(session => {
+        filteredSessions.forEach(session => {
           if (session.attendees.length === 0) {
             csv += `"${session.description}","${session.date}",""\n`;
           } else {
@@ -368,7 +389,7 @@ app.get('/api/export/csv', requireAuth, async (req, res) => {
     } else if (format === 'vertical') {
       // Vertical format: Members as rows, Sessions as columns
       const members = data.members;
-      const sessions = data.sessions;
+      const sessions = filteredSessions;
       
       // Header row
       if (dateFormat === 'combined') {
@@ -402,7 +423,7 @@ app.get('/api/export/csv', requireAuth, async (req, res) => {
       // Summary format: Member totals
       csv = 'Member Code,Member Name,Total Sessions Attended\n';
       data.members.forEach(member => {
-        const totalSessions = data.sessions.filter(session => 
+        const totalSessions = filteredSessions.filter(session => 
           session.attendees.includes(member.code)
         ).length;
         csv += `"${member.code}","${member.name}",${totalSessions}\n`;

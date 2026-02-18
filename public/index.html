@@ -3,112 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Young Vinnies Volunteer Hour Tracker</title>
+    <title>Dashboard - Young Vinnies Tracker</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <header class="has-logout">
             <h1>🌟 Young Vinnies Volunteer Hour Tracker</h1>
-            <p>Track volunteer hours and manage service sessions</p>
+            <p>Dashboard Overview</p>
             <button id="logout-btn" class="btn btn-secondary logout-btn">Logout</button>
         </header>
 
+        <!-- Navigation -->
+        <nav class="main-nav">
+            <ul>
+                <li><a href="index.html" class="active">🏠 Dashboard</a></li>
+                <li><a href="members.html">👥 Members</a></li>
+                <li><a href="sessions.html">📅 Sessions</a></li>
+                <li><a href="export.html">📊 Export Data</a></li>
+                <li id="nav-audit" style="display: none;"><a href="audit-log.html">🔐 Audit Log</a></li>
+            </ul>
+        </nav>
+
         <main>
-            <!-- Member Management Section -->
-            <section class="card">
-                <h2>👥 Member Management</h2>
-                
-                <div class="form-section">
-                    <h3>Add New Member</h3>
-                    <form id="add-member-form">
-                        <div class="form-group">
-                            <label for="member-name">Member Name:</label>
-                            <input type="text" id="member-name" required placeholder="e.g., Mathis Lam">
-                        </div>
-                        <button type="submit" class="btn btn-primary">Add Member</button>
-                    </form>
+            <!-- Dashboard Statistics -->
+            <section class="dashboard-stats">
+                <div class="stat-card">
+                    <div class="stat-icon">👥</div>
+                    <div class="stat-content">
+                        <h3 id="total-members">0</h3>
+                        <p>Total Members</p>
+                    </div>
+                    <a href="members.html" class="stat-link">Manage →</a>
                 </div>
 
-                <div class="table-section">
-                    <h3>Current Members</h3>
-                    <div id="members-table-container">
-                        <table id="members-table">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Code</th>
-                                </tr>
-                            </thead>
-                            <tbody id="members-tbody">
-                                <!-- Members will be loaded here -->
-                            </tbody>
-                        </table>
+                <div class="stat-card">
+                    <div class="stat-icon">📅</div>
+                    <div class="stat-content">
+                        <h3 id="total-sessions">0</h3>
+                        <p>Total Sessions</p>
+                    </div>
+                    <a href="sessions.html" class="stat-link">Manage →</a>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-content">
+                        <h3 id="total-attendances">0</h3>
+                        <p>Total Attendances</p>
+                    </div>
+                    <a href="export.html" class="stat-link">Export →</a>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-content">
+                        <h3 id="avg-attendance">0</h3>
+                        <p>Avg Attendance</p>
                     </div>
                 </div>
             </section>
 
-            <!-- Session Management Section -->
+            <!-- Recent Activity -->
             <section class="card">
-                <h2>📅 Session Management</h2>
-                
-                <div class="form-section">
-                    <h3>Create New Session</h3>
-                    <form id="create-session-form">
-                        <div class="form-group">
-                            <label for="session-date">Session Date:</label>
-                            <input type="date" id="session-date" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="session-description">Description:</label>
-                            <input type="text" id="session-description" required placeholder="e.g., Beach Cleanup at Mission Bay">
-                        </div>
-                        <button type="submit" class="btn btn-primary">Create Session</button>
-                    </form>
+                <h2>📋 Recent Sessions</h2>
+                <div id="recent-sessions-list">
+                    <!-- Recent sessions will be loaded here -->
                 </div>
-
-                <div class="table-section">
-                    <h3>Past Sessions</h3>
-                    <div id="sessions-list-container">
-                        <div id="sessions-list">
-                            <!-- Sessions will be loaded here -->
-                        </div>
-                    </div>
-                </div>
+                <a href="sessions.html" class="btn btn-primary">View All Sessions</a>
             </section>
 
-            <!-- Export Section -->
+            <!-- Top Volunteers -->
             <section class="card">
-                <h2>📊 Data Export</h2>
-                <p>Download all session attendance data in various CSV formats.</p>
-                
-                <div class="export-options">
-                    <div class="form-group">
-                        <label for="export-format">Export Format:</label>
-                        <select id="export-format" class="form-select">
-                            <option value="horizontal">Horizontal (Session per row)</option>
-                            <option value="vertical">Vertical (Member per row)</option>
-                            <option value="summary">Summary (Total attendance)</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="date-format">Date Format:</label>
-                        <select id="date-format" class="form-select">
-                            <option value="combined">Combined with event name</option>
-                            <option value="separate">Separate column</option>
-                        </select>
-                    </div>
-                    
-                    <button id="export-csv-btn" class="btn btn-success">Export to CSV</button>
+                <h2>🌟 Top Volunteers</h2>
+                <div id="top-volunteers-list">
+                    <!-- Top volunteers will be loaded here -->
                 </div>
+                <a href="members.html" class="btn btn-primary">View All Members</a>
             </section>
-            
-            <!-- Admin Section (visible only to super admin) -->
-            <section class="card" id="admin-section" style="display: none;">
-                <h2>🔐 Administrator Tools</h2>
-                <p>Super administrator functions.</p>
-                <a href="audit-log.html" class="btn btn-info">View Audit Log</a>
+
+            <!-- Quick Actions -->
+            <section class="card">
+                <h2>⚡ Quick Actions</h2>
+                <div class="quick-actions">
+                    <a href="members.html" class="btn btn-success">Add New Member</a>
+                    <a href="sessions.html" class="btn btn-success">Create New Session</a>
+                    <a href="export.html" class="btn btn-info">Export Data</a>
+                </div>
             </section>
         </main>
 
