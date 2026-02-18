@@ -148,12 +148,18 @@
     <script src="script.js"></script>
     <script>
         // Check if user is super admin
-        checkAuthAndRole().then(data => {
-            if (data.role !== 'super_admin') {
-                alert('Access denied. Super admin access required.');
-                window.location.href = 'index.html';
-            }
-        });
+        fetch('/api/check-auth')
+            .then(response => response.json())
+            .then(data => {
+                if (data.role !== 'super_admin') {
+                    alert('Access denied. Super admin access required.');
+                    window.location.href = 'index.html';
+                }
+            })
+            .catch(error => {
+                console.error('Auth check failed:', error);
+                window.location.href = 'login.html';
+            });
 
         // Load initial data
         loadSystemStats();

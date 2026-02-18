@@ -89,5 +89,15 @@
         "SARAHW": 4
       }
     }
+  },
+  {
+    "timestamp": "2026-02-18T23:06:12.089Z",
+    "username": "admin",
+    "action": "ADD_USER",
+    "data": {
+      "username": "leader3",
+      "role": "admin",
+      "displayName": "Team Leader 3"
+    }
   }
 ]

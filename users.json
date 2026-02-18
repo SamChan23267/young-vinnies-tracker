@@ -16,5 +16,11 @@
     "password": "leader456",
     "role": "admin",
     "displayName": "Team Leader 2"
+  },
+  {
+    "username": "leader3",
+    "password": "leader789",
+    "role": "admin",
+    "displayName": "Team Leader 3"
   }
 ]
