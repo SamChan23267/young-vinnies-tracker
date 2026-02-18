@@ -1,5 +1,29 @@
 // Utility Functions
 
+// Check authentication on page load
+async function checkAuth() {
+    try {
+        const response = await fetch('/api/check-auth');
+        const data = await response.json();
+        if (!data.authenticated) {
+            window.location.href = '/login.html';
+        }
+    } catch (error) {
+        console.error('Auth check failed:', error);
+        window.location.href = '/login.html';
+    }
+}
+
+// Logout function
+async function logout() {
+    try {
+        await fetch('/api/logout', { method: 'POST' });
+        window.location.href = '/login.html';
+    } catch (error) {
+        showMessage('Logout failed', 'error');
+    }
+}
+
 // Display a message to the user
 function showMessage(message, type = 'success') {
     const container = document.getElementById('message-container');
@@ -21,6 +45,11 @@ async function apiCall(url, options = {}) {
         const response = await fetch(url, options);
         if (!response.ok) {
             const error = await response.json();
+            // If unauthorized, redirect to login
+            if (response.status === 401) {
+                window.location.href = '/login.html';
+                return;
+            }
             throw new Error(error.error || 'Request failed');
         }
         return await response.json();
@@ -32,6 +61,12 @@ async function apiCall(url, options = {}) {
 
 // Index Page Functions
 if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/') {
+    
+    // Check authentication on page load
+    checkAuth();
+    
+    // Add logout button handler
+    document.getElementById('logout-btn')?.addEventListener('click', logout);
     
     // Load members
     async function loadMembers() {
@@ -156,6 +191,9 @@ if (window.location.pathname.endsWith('index.html') || window.location.pathname 
 // Session Page Functions
 if (window.location.pathname.endsWith('session.html')) {
     
+    // Check authentication on page load
+    checkAuth();
+    
     const urlParams = new URLSearchParams(window.location.search);
     const sessionId = urlParams.get('id');
     
@@ -227,6 +265,9 @@ if (window.location.pathname.endsWith('session.html')) {
             console.error('Error saving attendance:', error);
         }
     });
+
+    // Add logout button handler
+    document.getElementById('logout-btn')?.addEventListener('click', logout);
 
     // Initialize session page
     loadSessionDetails();

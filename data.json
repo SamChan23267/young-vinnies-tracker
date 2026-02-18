@@ -1,37 +1,4 @@
 {
-  "members": [
-    {
-      "name": "Mathis Lam",
-      "code": "MATHIL"
-    },
-    {
-      "name": "Sarah Johnson",
-      "code": "SARAHJ"
-    },
-    {
-      "name": "David Chen",
-      "code": "DAVIDC"
-    }
-  ],
-  "sessions": [
-    {
-      "id": "1",
-      "date": "2024-02-15",
-      "description": "Beach Cleanup at Mission Bay",
-      "attendees": [
-        "MATHIL",
-        "DAVIDC"
-      ]
-    },
-    {
-      "id": "2",
-      "date": "2024-02-10",
-      "description": "Food Bank Volunteer Day",
-      "attendees": [
-        "MATHIL",
-        "SARAHJ",
-        "DAVIDC"
-      ]
-    }
-  ]
+  "members": [],
+  "sessions": []
 }
