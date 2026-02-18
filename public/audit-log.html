@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audit Log - Young Vinnies Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="has-logout">
+            <h1>📋 Audit Log</h1>
+            <a href="index.html" class="btn btn-secondary">← Back to Main</a>
+            <button id="logout-btn" class="btn btn-secondary logout-btn">Logout</button>
+        </header>
+
+        <main>
+            <section class="card">
+                <h2>System Activity Log</h2>
+                <p>View all changes made to members, sessions, and attendance by all administrators.</p>
+                
+                <div class="table-section">
+                    <div id="audit-log-container">
+                        <table id="audit-log-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>User</th>
+                                    <th>Action</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody id="audit-log-tbody">
+                                <!-- Audit log entries will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 Young Vinnies Volunteer Hour Tracker</p>
+        </footer>
+    </div>
+
+    <div id="message-container"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>

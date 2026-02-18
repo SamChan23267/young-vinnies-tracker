@@ -31,7 +31,7 @@ app.use((req, res, next) => {
   }
   
   // For main pages, check authentication
-  if (req.path === '/' || req.path === '/index.html' || req.path === '/session.html') {
+  if (req.path === '/' || req.path === '/index.html' || req.path === '/session.html' || req.path === '/audit-log.html') {
     if (!req.session.authenticated) {
       return res.redirect('/login.html');
     }
@@ -45,18 +45,31 @@ app.use(express.static('public'));
 // File paths
 const DATA_FILE = path.join(__dirname, 'data.json');
 const AUDIT_LOG_FILE = path.join(__dirname, 'audit_log.json');
+const USERS_FILE = path.join(__dirname, 'users.json');
 
-// Hardcoded credentials (in production, use a database with hashed passwords)
-// TODO: Implement proper user management with bcrypt password hashing
-const VALID_CREDENTIALS = {
-  username: 'admin',
-  password: 'vinnies2024'
-};
+// Helper function to read users
+async function readUsers() {
+  try {
+    const data = await fs.readFile(USERS_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('Error reading users:', error);
+    return [];
+  }
+}
 
 // Authentication middleware for API routes
 function requireAuth(req, res, next) {
   if (!req.session.authenticated) {
     return res.status(401).json({ error: 'Unauthorized. Please login first.' });
+  }
+  next();
+}
+
+// Super admin middleware
+function requireSuperAdmin(req, res, next) {
+  if (!req.session.authenticated || req.session.role !== 'super_admin') {
+    return res.status(403).json({ error: 'Forbidden. Super admin access required.' });
   }
   next();
 }
@@ -78,12 +91,13 @@ async function writeData(data) {
 }
 
 // Helper function to log audit entry
-async function logAudit(action, data) {
+async function logAudit(action, data, username) {
   try {
     const logData = await fs.readFile(AUDIT_LOG_FILE, 'utf8');
     const logs = JSON.parse(logData);
     logs.push({
       timestamp: new Date().toISOString(),
+      username: username || 'unknown',
       action,
       data
     });
@@ -137,19 +151,34 @@ function generateSessionId(existingSessions) {
 // Authentication Endpoints
 
 // POST /api/login - Authenticate user
-app.post('/api/login', (req, res) => {
+app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   
   if (!username || !password) {
     return res.status(400).json({ error: 'Username and password are required' });
   }
   
-  if (username === VALID_CREDENTIALS.username && password === VALID_CREDENTIALS.password) {
-    req.session.authenticated = true;
-    req.session.username = username;
-    res.json({ success: true, message: 'Login successful' });
-  } else {
-    res.status(401).json({ error: 'Invalid username or password' });
+  try {
+    const users = await readUsers();
+    const user = users.find(u => u.username === username && u.password === password);
+    
+    if (user) {
+      req.session.authenticated = true;
+      req.session.username = username;
+      req.session.role = user.role;
+      req.session.displayName = user.displayName;
+      res.json({ 
+        success: true, 
+        message: 'Login successful',
+        role: user.role,
+        displayName: user.displayName
+      });
+    } else {
+      res.status(401).json({ error: 'Invalid username or password' });
+    }
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Login failed' });
   }
 });
 
@@ -165,7 +194,12 @@ app.post('/api/logout', (req, res) => {
 
 // GET /api/check-auth - Check if user is authenticated
 app.get('/api/check-auth', (req, res) => {
-  res.json({ authenticated: !!req.session.authenticated });
+  res.json({ 
+    authenticated: !!req.session.authenticated,
+    username: req.session.username,
+    role: req.session.role,
+    displayName: req.session.displayName
+  });
 });
 
 // Data Management Endpoints (Protected)
@@ -200,7 +234,7 @@ app.post('/api/members', requireAuth, async (req, res) => {
     
     data.members.push(newMember);
     await writeData(data);
-    await logAudit('ADD_MEMBER', newMember);
+    await logAudit('ADD_MEMBER', newMember, req.session.username);
     
     res.status(201).json(newMember);
   } catch (error) {
@@ -239,7 +273,7 @@ app.post('/api/sessions', requireAuth, async (req, res) => {
     
     data.sessions.push(newSession);
     await writeData(data);
-    await logAudit('CREATE_SESSION', newSession);
+    await logAudit('CREATE_SESSION', newSession, req.session.username);
     
     res.status(201).json(newSession);
   } catch (error) {
@@ -286,7 +320,7 @@ app.put('/api/sessions/:id/attendance', requireAuth, async (req, res) => {
     await logAudit('UPDATE_ATTENDANCE', {
       sessionId: id,
       attendees
-    });
+    }, req.session.username);
     
     res.json(data.sessions[sessionIndex]);
   } catch (error) {
@@ -298,27 +332,100 @@ app.put('/api/sessions/:id/attendance', requireAuth, async (req, res) => {
 app.get('/api/export/csv', requireAuth, async (req, res) => {
   try {
     const data = await readData();
+    const format = req.query.format || 'horizontal'; // horizontal, vertical, summary
+    const dateFormat = req.query.dateFormat || 'combined'; // combined, separate
     
-    // Create CSV header
-    let csv = 'Session Date,Session Description,Attended Member Codes\n';
+    let csv = '';
+    let filename = 'volunteer_hours.csv';
     
-    // Add rows for each session and attendee
-    data.sessions.forEach(session => {
-      if (session.attendees.length === 0) {
-        // Include sessions with no attendees
-        csv += `"${session.date}","${session.description}",""\n`;
+    if (format === 'horizontal') {
+      // Horizontal format: Session Date, Session Description, Attended Member Codes
+      if (dateFormat === 'combined') {
+        csv = 'Session Date,Session Description,Attended Member Codes\n';
+        data.sessions.forEach(session => {
+          if (session.attendees.length === 0) {
+            csv += `"${session.date}","${session.description}",""\n`;
+          } else {
+            session.attendees.forEach(attendeeCode => {
+              csv += `"${session.date}","${session.description}","${attendeeCode}"\n`;
+            });
+          }
+        });
       } else {
-        session.attendees.forEach(attendeeCode => {
-          csv += `"${session.date}","${session.description}","${attendeeCode}"\n`;
+        // Separate date format
+        csv = 'Event Name,Session Date,Attended Member Codes\n';
+        data.sessions.forEach(session => {
+          if (session.attendees.length === 0) {
+            csv += `"${session.description}","${session.date}",""\n`;
+          } else {
+            session.attendees.forEach(attendeeCode => {
+              csv += `"${session.description}","${session.date}","${attendeeCode}"\n`;
+            });
+          }
         });
       }
-    });
+      filename = 'volunteer_hours_horizontal.csv';
+    } else if (format === 'vertical') {
+      // Vertical format: Members as rows, Sessions as columns
+      const members = data.members;
+      const sessions = data.sessions;
+      
+      // Header row
+      if (dateFormat === 'combined') {
+        csv = 'Member Code,Member Name';
+        sessions.forEach(session => {
+          csv += `,"${session.description} (${session.date})"`;
+        });
+      } else {
+        csv = 'Member Code,Member Name';
+        sessions.forEach(session => {
+          csv += `,"${session.description}","Date"`;
+        });
+      }
+      csv += '\n';
+      
+      // Data rows
+      members.forEach(member => {
+        csv += `"${member.code}","${member.name}"`;
+        sessions.forEach(session => {
+          const attended = session.attendees.includes(member.code);
+          if (dateFormat === 'combined') {
+            csv += `,${attended ? 'X' : ''}`;
+          } else {
+            csv += `,${attended ? 'X' : ''},"${attended ? session.date : ''}"`;
+          }
+        });
+        csv += '\n';
+      });
+      filename = 'volunteer_hours_vertical.csv';
+    } else if (format === 'summary') {
+      // Summary format: Member totals
+      csv = 'Member Code,Member Name,Total Sessions Attended\n';
+      data.members.forEach(member => {
+        const totalSessions = data.sessions.filter(session => 
+          session.attendees.includes(member.code)
+        ).length;
+        csv += `"${member.code}","${member.name}",${totalSessions}\n`;
+      });
+      filename = 'volunteer_hours_summary.csv';
+    }
     
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename=volunteer_hours.csv');
+    res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
     res.send(csv);
   } catch (error) {
     res.status(500).json({ error: 'Failed to export CSV' });
+  }
+});
+
+// GET /api/audit-log - Get audit log (super admin only)
+app.get('/api/audit-log', requireSuperAdmin, async (req, res) => {
+  try {
+    const logData = await fs.readFile(AUDIT_LOG_FILE, 'utf8');
+    const logs = JSON.parse(logData);
+    res.json(logs);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch audit log' });
   }
 });
 

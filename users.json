@@ -1,0 +1,20 @@
+[
+  {
+    "username": "admin",
+    "password": "vinnies2024",
+    "role": "super_admin",
+    "displayName": "Super Administrator"
+  },
+  {
+    "username": "leader1",
+    "password": "leader123",
+    "role": "admin",
+    "displayName": "Team Leader 1"
+  },
+  {
+    "username": "leader2",
+    "password": "leader456",
+    "role": "admin",
+    "displayName": "Team Leader 2"
+  }
+]

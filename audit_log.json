@@ -1,1 +1,22 @@
-[]
+[
+  {
+    "timestamp": "2026-02-18T10:43:49.726Z",
+    "username": "admin",
+    "action": "ADD_MEMBER",
+    "data": {
+      "name": "Alice Johnson",
+      "code": "ALICEJ"
+    }
+  },
+  {
+    "timestamp": "2026-02-18T10:43:59.193Z",
+    "username": "admin",
+    "action": "CREATE_SESSION",
+    "data": {
+      "id": "1",
+      "date": "2024-03-15",
+      "description": "Community Garden Cleanup",
+      "attendees": []
+    }
+  }
+]

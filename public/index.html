@@ -8,7 +8,7 @@
 </head>
 <body>
     <div class="container">
-        <header>
+        <header class="has-logout">
             <h1>🌟 Young Vinnies Volunteer Hour Tracker</h1>
             <p>Track volunteer hours and manage service sessions</p>
             <button id="logout-btn" class="btn btn-secondary logout-btn">Logout</button>
@@ -80,8 +80,35 @@
             <!-- Export Section -->
             <section class="card">
                 <h2>📊 Data Export</h2>
-                <p>Download all session attendance data as a CSV file.</p>
-                <button id="export-csv-btn" class="btn btn-success">Export All Sessions to CSV</button>
+                <p>Download all session attendance data in various CSV formats.</p>
+                
+                <div class="export-options">
+                    <div class="form-group">
+                        <label for="export-format">Export Format:</label>
+                        <select id="export-format" class="form-select">
+                            <option value="horizontal">Horizontal (Session per row)</option>
+                            <option value="vertical">Vertical (Member per row)</option>
+                            <option value="summary">Summary (Total attendance)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="date-format">Date Format:</label>
+                        <select id="date-format" class="form-select">
+                            <option value="combined">Combined with event name</option>
+                            <option value="separate">Separate column</option>
+                        </select>
+                    </div>
+                    
+                    <button id="export-csv-btn" class="btn btn-success">Export to CSV</button>
+                </div>
+            </section>
+            
+            <!-- Admin Section (visible only to super admin) -->
+            <section class="card" id="admin-section" style="display: none;">
+                <h2>🔐 Administrator Tools</h2>
+                <p>Super administrator functions.</p>
+                <a href="audit-log.html" class="btn btn-info">View Audit Log</a>
             </section>
         </main>
 
