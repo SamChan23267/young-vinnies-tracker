@@ -1,4 +1,17 @@
 {
-  "members": [],
-  "sessions": []
+  "members": [
+    {
+      "name": "John Smith",
+      "code": "JOHNS",
+      "yearLevel": "Year 10"
+    }
+  ],
+  "sessions": [
+    {
+      "id": "1",
+      "date": "2024-03-20",
+      "description": "Community Service Day",
+      "attendees": []
+    }
+  ]
 }

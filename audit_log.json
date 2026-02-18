@@ -18,5 +18,26 @@
       "description": "Community Garden Cleanup",
       "attendees": []
     }
+  },
+  {
+    "timestamp": "2026-02-18T11:47:40.979Z",
+    "username": "admin",
+    "action": "ADD_MEMBER",
+    "data": {
+      "name": "John Smith",
+      "code": "JOHNS",
+      "yearLevel": "Year 10"
+    }
+  },
+  {
+    "timestamp": "2026-02-18T11:48:32.257Z",
+    "username": "admin",
+    "action": "CREATE_SESSION",
+    "data": {
+      "id": "1",
+      "date": "2024-03-20",
+      "description": "Community Service Day",
+      "attendees": []
+    }
   }
 ]
