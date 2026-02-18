@@ -4,6 +4,7 @@ A simple web application to track volunteer hours for a student group.
 
 ## Features
 
+- **User Authentication**: Secure login system to ensure only authorized leaders can access the application
 - **Member Management**: Add and view members with auto-generated unique codes
 - **Session Management**: Create service sessions and track attendance
 - **Attendance Tracking**: Mark which members attended each session
@@ -15,6 +16,7 @@ A simple web application to track volunteer hours for a student group.
 - **Backend**: Node.js with Express.js
 - **Frontend**: HTML, CSS, and vanilla JavaScript
 - **Database**: JSON file storage (data.json)
+- **Authentication**: Express sessions with secure login
 
 ## Installation
 
@@ -38,11 +40,35 @@ npm start
 
 The application will be available at `http://localhost:3000`
 
+## Login Credentials
+
+**Default login credentials:**
+- Username: `admin`
+- Password: `vinnies2024`
+
+> **Security Note**: This application is designed for internal use in a trusted environment. For production deployment:
+> - Change the default credentials
+> - Store credentials in environment variables
+> - Implement password hashing (bcrypt/argon2)
+> - Enable HTTPS and set secure cookie flag
+> - Consider adding CSRF protection
+> - The current implementation uses plaintext passwords for simplicity - suitable for a small school group but not for public-facing applications
+
 ## Usage
 
+### Logging In
+1. Navigate to `http://localhost:3000`
+2. You will be automatically redirected to the login page
+3. Enter the username and password
+4. Click "Login" to access the application
+
+### Logging Out
+- Click the "Logout" button in the top-right corner of any page
+- You will be redirected to the login page
+
 ### Adding Members
-1. Open the application in your browser
-2. In the "Member Management" section, enter a member's name
+1. After logging in, go to the "Member Management" section
+2. Enter a member's name
 3. Click "Add Member" - a unique code will be automatically generated
 
 ### Creating Sessions
@@ -68,6 +94,7 @@ The application will be available at `http://localhost:3000`
 ├── audit_log.json        # Audit log of all changes
 ├── public/
 │   ├── index.html        # Main page
+│   ├── login.html        # Login page
 │   ├── session.html      # Session attendance page
 │   ├── style.css         # Styling
 │   └── script.js         # Frontend JavaScript
@@ -76,6 +103,12 @@ The application will be available at `http://localhost:3000`
 
 ## API Endpoints
 
+### Authentication
+- `POST /api/login` - Authenticate user
+- `POST /api/logout` - Logout user
+- `GET /api/check-auth` - Check authentication status
+
+### Data Management (Protected - Requires Authentication)
 - `GET /api/members` - Get all members
 - `POST /api/members` - Add a new member
 - `GET /api/sessions` - Get all sessions

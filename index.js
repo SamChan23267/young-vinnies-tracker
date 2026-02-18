@@ -11,11 +11,11 @@ app.use(express.json());
 
 // Session configuration
 app.use(session({
-  secret: 'young-vinnies-secret-key-2024',
+  secret: 'young-vinnies-secret-key-2024', // TODO: Move to environment variable in production
   resave: false,
   saveUninitialized: false,
   cookie: { 
-    secure: false, // Set to true if using HTTPS
+    secure: false, // Set to true if using HTTPS in production
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
 }));
@@ -47,6 +47,7 @@ const DATA_FILE = path.join(__dirname, 'data.json');
 const AUDIT_LOG_FILE = path.join(__dirname, 'audit_log.json');
 
 // Hardcoded credentials (in production, use a database with hashed passwords)
+// TODO: Implement proper user management with bcrypt password hashing
 const VALID_CREDENTIALS = {
   username: 'admin',
   password: 'vinnies2024'

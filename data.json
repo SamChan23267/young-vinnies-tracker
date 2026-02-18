@@ -1,4 +1,9 @@
 {
-  "members": [],
+  "members": [
+    {
+      "name": "John Smith",
+      "code": "JOHNS"
+    }
+  ],
   "sessions": []
 }
