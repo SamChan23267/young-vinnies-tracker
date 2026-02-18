@@ -39,5 +39,16 @@
       "description": "Community Service Day",
       "attendees": []
     }
+  },
+  {
+    "timestamp": "2026-02-18T21:03:49.440Z",
+    "username": "admin",
+    "action": "UPDATE_ATTENDANCE",
+    "data": {
+      "sessionId": "1",
+      "attendees": [
+        "JOHNS"
+      ]
+    }
   }
 ]
