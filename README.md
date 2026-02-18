@@ -7,11 +7,19 @@ A simple web application to track volunteer hours for a student group.
 - **User Authentication**: Secure login system to ensure only authorized leaders can access the application
 - **Multi-Admin Support**: Multiple administrators can access the system with different credentials
 - **Role-Based Access**: Super admin role for accessing system audit logs
-- **Member Management**: Add and view members with auto-generated unique codes
-- **Session Management**: Create service sessions and track attendance
+- **Multi-Page Application**: Organized into separate pages for better usability
+- **Dashboard Overview**: Statistics and quick access to key functions
+- **Member Management**: Add and view members with auto-generated unique codes, search functionality
+- **Session Management**: Create service sessions and track attendance, search functionality
 - **Attendance Tracking**: Mark which members attended each session
-- **Flexible Data Export**: Export session data in multiple CSV formats (horizontal, vertical, summary)
+- **Advanced Data Export**: 
+  - Export session data in multiple CSV formats (horizontal, vertical, summary)
+  - Select specific sessions to export
+  - Filter by date range
+  - Choose date format options
+- **Search & Filter**: Real-time search for members and sessions
 - **Comprehensive Audit Logging**: All data modifications are automatically logged with username tracking
+- **Responsive Design**: Works on desktop, tablet, and mobile devices
 
 ## Technology Stack
 
@@ -67,48 +75,74 @@ The application will be available at `http://localhost:3000`
 
 ## Usage
 
+### Application Structure
+
+The application is organized into multiple pages accessible via the navigation menu:
+
+- **🏠 Dashboard** - Overview with statistics and quick actions
+- **👥 Members** - Manage volunteer members
+- **📅 Sessions** - Manage volunteer sessions
+- **📊 Export Data** - Export attendance data with advanced filters
+- **🔐 Audit Log** - View system activity (super admin only)
+
 ### Logging In
 1. Navigate to `http://localhost:3000`
 2. You will be automatically redirected to the login page
 3. Enter the username and password
-4. Click "Login" to access the application
+4. Click "Login" to access the dashboard
 
 ### Logging Out
 - Click the "Logout" button in the top-right corner of any page
 - You will be redirected to the login page
 
+### Using the Dashboard
+1. After logging in, you'll see the dashboard with:
+   - Statistics cards showing total members, sessions, and attendance
+   - Recent sessions list
+   - Top volunteers by attendance
+   - Quick action buttons
+2. Click on any card's "Manage →" or "Export →" link to navigate to that section
+3. Use the Quick Actions buttons to add members, create sessions, or export data
+
 ### Adding Members
-1. After logging in, go to the "Member Management" section
-2. Enter a member's name
-3. Click "Add Member" - a unique code will be automatically generated
+1. Click "👥 Members" in the navigation menu
+2. Use the search box to find existing members
+3. Enter a member's name in the form
+4. Click "Add Member" - a unique code will be automatically generated
+5. The member appears in the table with their attendance count
 
 ### Creating Sessions
-1. In the "Session Management" section, enter a date and description
-2. Click "Create Session"
-3. The session will appear in the "Past Sessions" list
+1. Click "📅 Sessions" in the navigation menu
+2. Use the search box to find existing sessions
+3. Enter a date and description in the form
+4. Click "Create Session"
+5. The session will appear in the list with an "View/Edit Attendance" button
 
 ### Recording Attendance
-1. Click "View/Edit Attendance" on any session
+1. From the Sessions page, click "View/Edit Attendance" on any session
 2. Check the boxes next to members who attended
 3. Click "Save Attendance"
+4. Return to Sessions page to see updated attendance counts
 
 ### Exporting Data
-1. On the main page, go to the "Data Export" section
-2. Select the export format:
-   - **Horizontal**: One row per member per session (detailed format)
-   - **Vertical**: Members as rows, sessions as columns (attendance matrix)
-   - **Summary**: Total sessions attended per member
-3. Select the date format:
-   - **Combined with event name**: Event name includes date (e.g., "Beach Cleanup (2024-03-15)")
-   - **Separate column**: Date in its own column
-4. Click "Export to CSV"
-5. The file will be downloaded automatically
+1. Click "📊 Export Data" in the navigation menu
+2. Choose your export settings:
+   - **Export Format**: Horizontal, Vertical, or Summary
+   - **Date Format**: Combined or Separate column
+   - **Date Range**: Optional start and end dates
+3. Select specific sessions to export:
+   - Check/uncheck individual sessions
+   - Use "Select All" or "Deselect All" buttons
+4. Click either:
+   - **Export Selected Sessions** - exports only checked sessions
+   - **Export All Sessions** - exports all sessions (respects date range if set)
+5. The CSV file will be downloaded automatically
 
 ### Viewing Audit Log (Super Admin Only)
 1. Login as a super admin (e.g., admin/vinnies2024)
-2. On the main page, you'll see the "Administrator Tools" section
-3. Click "View Audit Log"
-4. Review all system activities with timestamps and usernames
+2. The "🔐 Audit Log" link will appear in the navigation menu
+3. Click "Audit Log" to view all system activities
+4. Review entries with timestamps and usernames
 5. Each entry shows who made the change, when, and what was changed
 
 ## File Structure
@@ -120,12 +154,15 @@ The application will be available at `http://localhost:3000`
 ├── audit_log.json        # Audit log of all changes with usernames
 ├── users.json            # User accounts with roles
 ├── public/
-│   ├── index.html        # Main page
-│   ├── login.html        # Login page
-│   ├── session.html      # Session attendance page
+│   ├── index.html        # Dashboard page (home)
+│   ├── members.html      # Member management page
+│   ├── sessions.html     # Session management page
+│   ├── export.html       # Data export page with filters
+│   ├── session.html      # Individual session attendance page
 │   ├── audit-log.html    # Audit log viewer (super admin only)
-│   ├── style.css         # Styling
-│   └── script.js         # Frontend JavaScript
+│   ├── login.html        # Login page
+│   ├── style.css         # Styling with navigation and dashboard components
+│   └── script.js         # Frontend JavaScript for all pages
 └── README.md             # This file
 ```
 
@@ -143,12 +180,30 @@ The application will be available at `http://localhost:3000`
 - `POST /api/sessions` - Create a new session (logs username in audit)
 - `GET /api/sessions/:id` - Get a specific session
 - `PUT /api/sessions/:id/attendance` - Update session attendance (logs username in audit)
-- `GET /api/export/csv?format=horizontal&dateFormat=combined` - Export data to CSV
-  - Format options: `horizontal`, `vertical`, `summary`
-  - Date format options: `combined`, `separate`
+- `GET /api/export/csv` - Export data to CSV with filters
+  - **Query Parameters:**
+    - `format`: `horizontal`, `vertical`, or `summary`
+    - `dateFormat`: `combined` or `separate`
+    - `sessions`: Comma-separated session IDs (optional)
+    - `startDate`: Filter sessions from this date (optional)
+    - `endDate`: Filter sessions until this date (optional)
 
 ### Super Admin Only
 - `GET /api/audit-log` - View complete system audit log
+
+## Screenshots
+
+**Dashboard:**
+![Dashboard](https://github.com/user-attachments/assets/c78bbf75-c8ad-4a3a-b1d0-57b24664498c)
+
+**Members Page:**
+![Members](https://github.com/user-attachments/assets/823d52d8-172d-4360-ac3d-8dc9a42b7226)
+
+**Sessions Page:**
+![Sessions](https://github.com/user-attachments/assets/694fdcfc-905d-4933-ba96-9d3f49e5317a)
+
+**Export Page:**
+![Export](https://github.com/user-attachments/assets/e33241fd-013f-4616-b25a-01eb9e2dda90)
 
 ## License
 
