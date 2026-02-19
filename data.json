@@ -1,38 +1,4 @@
 {
-  "members": [
-    {
-      "name": "John Smith",
-      "code": "JOHNS",
-      "yearLevel": "Year 10"
-    },
-    {
-      "name": "Sarah Williams",
-      "code": "SARAHW",
-      "yearLevel": ""
-    }
-  ],
-  "sessions": [
-    {
-      "id": "1",
-      "date": "2024-03-20",
-      "description": "Community Service Day",
-      "attendees": [
-        "JOHNS"
-      ]
-    },
-    {
-      "id": "2",
-      "date": "2024-03-21",
-      "description": "Food Bank Volunteer Day",
-      "hours": 3,
-      "attendees": [
-        "JOHNS",
-        "SARAHW"
-      ],
-      "individualHours": {
-        "JOHNS": 2,
-        "SARAHW": 4
-      }
-    }
-  ]
+  "members": [],
+  "sessions": []
 }
