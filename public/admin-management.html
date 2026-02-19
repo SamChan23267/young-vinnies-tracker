@@ -156,11 +156,11 @@
 
     <script src="script.js"></script>
     <script>
-        // Check if user is super admin
+        // Check if user is super admin or sam
         fetch('/api/check-auth')
             .then(response => response.json())
             .then(data => {
-                if (data.role !== 'super_admin') {
+                if (data.role !== 'super_admin' && data.role !== 'sam') {
                     alert('Access denied. Super admin access required.');
                     window.location.href = 'index.html';
                 }

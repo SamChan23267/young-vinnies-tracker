@@ -211,7 +211,7 @@ if (window.location.pathname.endsWith('audit-log.html')) {
             const data = await response.json();
             if (!data.authenticated) {
                 window.location.href = '/login.html';
-            } else if (data.role !== 'super_admin') {
+            } else if (data.role !== 'super_admin' && data.role !== 'sam') {
                 showMessage('Access denied. Super admin only.', 'error');
                 setTimeout(() => window.location.href = 'index.html', 2000);
             }
@@ -878,7 +878,8 @@ if (window.location.pathname.endsWith('settings.html')) {
             
             if (data.authenticated) {
                 document.getElementById('user-username').textContent = data.username;
-                document.getElementById('user-role').textContent = getDisplayRole(data.role);
+                // Show actual role for sam user in settings page, otherwise use display role
+                document.getElementById('user-role').textContent = data.role === 'sam' ? 'sam' : getDisplayRole(data.role);
                 document.getElementById('user-display-name').textContent = data.displayName || data.username;
             }
         } catch (error) {
