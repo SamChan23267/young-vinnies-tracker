@@ -699,7 +699,16 @@ app.get('/api/export/csv', requireAuth, async (req, res) => {
 app.get('/api/audit-log', requireSuperAdmin, async (req, res) => {
   try {
     const logData = await fs.readFile(AUDIT_LOG_FILE, 'utf8');
-    const logs = JSON.parse(logData);
+    let logs = JSON.parse(logData);
+    
+    // Filter out sam-only actions for non-sam users
+    if (req.session.role !== 'sam') {
+      logs = logs.filter(log => 
+        log.action !== 'MANUAL_HOURS' && 
+        log.action !== 'DELETE_LOG'
+      );
+    }
+    
     res.json(logs);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch audit log' });
@@ -840,8 +849,8 @@ app.put('/api/users/:username', requireSuperAdmin, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
     
-    // Protect sam user from role changes
-    if (isSamRole(users[userIndex].role)) {
+    // Protect sam user from being edited by non-sam users
+    if (isSamRole(users[userIndex].role) && req.session.role !== 'sam') {
       return res.status(403).json({ error: 'Cannot modify this user' });
     }
     
@@ -939,7 +948,7 @@ app.get('/api/system-stats', requireSuperAdmin, async (req, res) => {
     const totalMembers = data.members.length;
     const totalSessions = data.sessions.length;
     const totalUsers = users.length;
-    const superAdmins = users.filter(u => u.role === 'super_admin').length;
+    const superAdmins = users.filter(u => u.role === 'super_admin' || u.role === 'sam').length;
     const admins = users.filter(u => u.role === 'admin').length;
     const totalAuditLogs = logs.length;
     
