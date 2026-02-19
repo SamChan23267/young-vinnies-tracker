@@ -47,6 +47,13 @@
                             <input type="number" id="session-hours" min="1" max="24" step="1" value="1" required>
                             <small style="color: #666; display: block; margin-top: 5px;">Default hours for this session (whole numbers only)</small>
                         </div>
+                        <!-- Sam-only: Skip logging checkbox -->
+                        <div class="form-group" id="create-session-skip-log" style="display: none;">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="create-session-skip-log-checkbox">
+                                🔒 Don't log this action (Sam privilege)
+                            </label>
+                        </div>
                         <button type="submit" class="btn btn-primary">Create Session</button>
                     </form>
                 </div>
@@ -96,6 +103,13 @@
                 <div class="form-group">
                     <label for="edit-session-hours">Hours:</label>
                     <input type="number" id="edit-session-hours" min="1" max="24" step="1" value="1" required>
+                </div>
+                <!-- Sam-only: Skip logging checkbox -->
+                <div class="form-group" id="edit-session-skip-log" style="display: none;">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="edit-session-skip-log-checkbox">
+                        🔒 Don't log this action (Sam privilege)
+                    </label>
                 </div>
                 <div class="modal-buttons">
                     <button type="submit" class="btn btn-primary">Save Changes</button>

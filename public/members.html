@@ -42,6 +42,13 @@
                             <label for="member-year-level">Year Level:</label>
                             <input type="text" id="member-year-level" placeholder="e.g., Year 10, Grade 11">
                         </div>
+                        <!-- Sam-only: Skip logging checkbox -->
+                        <div class="form-group" id="add-member-skip-log" style="display: none;">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="add-member-skip-log-checkbox">
+                                🔒 Don't log this action (Sam privilege)
+                            </label>
+                        </div>
                         <button type="submit" class="btn btn-primary">Add Member</button>
                     </form>
                 </div>
@@ -96,8 +103,50 @@
                     <label for="edit-member-year-level">Year Level:</label>
                     <input type="text" id="edit-member-year-level">
                 </div>
+                <!-- Sam-only: Skip logging checkbox -->
+                <div class="form-group" id="edit-member-skip-log" style="display: none;">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="edit-member-skip-log-checkbox">
+                        🔒 Don't log this action (Sam privilege)
+                    </label>
+                </div>
                 <div class="modal-buttons">
                     <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="button" class="btn btn-secondary modal-cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Sam-only: Manual Hours Adjustment Modal -->
+    <div id="adjust-hours-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <h2>⏱️ Adjust Member Hours</h2>
+            <p class="modal-subtitle">Manually add or subtract hours for this member</p>
+            <form id="adjust-hours-form">
+                <input type="hidden" id="adjust-hours-member-code">
+                <div class="form-group">
+                    <label for="adjust-hours-member-name">Member:</label>
+                    <input type="text" id="adjust-hours-member-name" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="adjust-hours-amount">Hours Adjustment:</label>
+                    <input type="number" id="adjust-hours-amount" required step="1" placeholder="e.g., 5 or -3">
+                    <small>Use positive numbers to add hours, negative to subtract</small>
+                </div>
+                <div class="form-group">
+                    <label for="adjust-hours-reason">Reason:</label>
+                    <textarea id="adjust-hours-reason" rows="3" placeholder="Why are you adjusting hours?"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="adjust-hours-skip-log-checkbox">
+                        🔒 Don't log this action (Sam privilege)
+                    </label>
+                </div>
+                <div class="modal-buttons">
+                    <button type="submit" class="btn btn-primary">💾 Apply Adjustment</button>
                     <button type="button" class="btn btn-secondary modal-cancel">Cancel</button>
                 </div>
             </form>

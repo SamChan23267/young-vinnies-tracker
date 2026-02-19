@@ -180,11 +180,13 @@ if (window.location.pathname.endsWith('session.html')) {
             }
         });
         
+        const skipLog = getSkipLogValue('attendance-skip-log-checkbox');
+        
         try {
             await apiCall(`/api/sessions/${sessionId}/attendance`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ attendees, individualHours })
+                body: JSON.stringify({ attendees, individualHours, skipLog })
             });
             
             showMessage('Attendance saved successfully!', 'success');
@@ -233,14 +235,14 @@ if (window.location.pathname.endsWith('audit-log.html')) {
             const tbody = document.getElementById('audit-log-tbody');
             
             if (logs.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" class="empty-state"><p>No audit log entries yet.</p></td></tr>';
+                tbody.innerHTML = `<tr><td colspan="${isSamUser ? '5' : '4'}" class="empty-state"><p>No audit log entries yet.</p></td></tr>`;
                 return;
             }
             
             // Sort logs by timestamp, most recent first
             logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
             
-            tbody.innerHTML = logs.map(log => {
+            tbody.innerHTML = logs.map((log, index) => {
                 const date = new Date(log.timestamp);
                 const formattedDate = date.toLocaleString();
                 const details = JSON.stringify(log.data, null, 2);
@@ -251,6 +253,7 @@ if (window.location.pathname.endsWith('audit-log.html')) {
                         <td><strong>${log.username || 'unknown'}</strong></td>
                         <td><span class="action-badge">${log.action}</span></td>
                         <td><pre style="margin: 0; font-size: 0.85em; max-width: 400px; overflow-x: auto;">${details}</pre></td>
+                        ${isSamUser ? `<td><button class="btn btn-delete" onclick="deleteAuditLogEntry(${index})" title="Delete this log entry">🗑️</button></td>` : ''}
                     </tr>
                 `;
             }).join('');
@@ -431,20 +434,23 @@ if (window.location.pathname.endsWith('members.html')) {
             });
         });
         
-        tbody.innerHTML = members.map(member => `
+        tbody.innerHTML = members.map(member => {
+            const totalHours = (memberHours[member.code] || 0) + (member.manualHours || 0);
+            return `
             <tr>
                 <td>${member.name}</td>
                 <td><strong>${member.code}</strong></td>
                 <td>${member.yearLevel || '-'}</td>
-                <td>${memberHours[member.code] || 0} hrs</td>
+                <td>${totalHours} hrs</td>
                 <td>
                     <div class="action-buttons">
                         <button class="btn btn-edit" onclick="editMember('${member.code}')">Edit</button>
                         <button class="btn btn-delete" onclick="deleteMember('${member.code}', '${member.name}')">Delete</button>
+                        ${isSamUser ? `<button class="btn btn-primary" style="background: #10b981;" onclick="showAdjustHoursModal('${member.code}', '${member.name}')">⏱️ Adjust Hours</button>` : ''}
                     </div>
                 </td>
             </tr>
-        `).join('');
+        `}).join('');
     }
     
     // Search functionality
@@ -465,6 +471,7 @@ if (window.location.pathname.endsWith('members.html')) {
         const yearLevelInput = document.getElementById('member-year-level');
         const name = nameInput.value.trim();
         const yearLevel = yearLevelInput.value.trim();
+        const skipLog = getSkipLogValue('add-member-skip-log-checkbox');
         
         if (!name) return;
         
@@ -472,7 +479,7 @@ if (window.location.pathname.endsWith('members.html')) {
             const member = await apiCall('/api/members', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, yearLevel })
+                body: JSON.stringify({ name, yearLevel, skipLog })
             });
             
             showMessage(`Member "${member.name}" added with code ${member.code}!`, 'success');
@@ -503,9 +510,13 @@ if (window.location.pathname.endsWith('members.html')) {
             return;
         }
         
+        const skipLog = isSamUser && confirm('Skip logging this deletion? (Sam privilege)\nClick OK to skip logging, Cancel to log normally.');
+        
         try {
             await apiCall(`/api/members/${code}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ skipLog })
             });
             
             showMessage(`Member "${name}" deleted successfully!`, 'success');
@@ -522,6 +533,7 @@ if (window.location.pathname.endsWith('members.html')) {
         const name = document.getElementById('edit-member-name').value.trim();
         const newCode = document.getElementById('edit-member-code').value.trim();
         const yearLevel = document.getElementById('edit-member-year-level').value.trim();
+        const skipLog = getSkipLogValue('edit-member-skip-log-checkbox');
         
         if (!name || !newCode) return;
         
@@ -529,7 +541,7 @@ if (window.location.pathname.endsWith('members.html')) {
             await apiCall(`/api/members/${oldCode}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, newCode, yearLevel })
+                body: JSON.stringify({ name, newCode, yearLevel, skipLog })
             });
             
             showMessage(`Member updated successfully!`, 'success');
@@ -551,11 +563,26 @@ if (window.location.pathname.endsWith('members.html')) {
     
     // Close modal when clicking outside
     window.addEventListener('click', (e) => {
-        const modal = document.getElementById('edit-member-modal');
-        if (e.target === modal) {
-            modal.style.display = 'none';
+        const editModal = document.getElementById('edit-member-modal');
+        const adjustModal = document.getElementById('adjust-hours-modal');
+        if (e.target === editModal) {
+            editModal.style.display = 'none';
+        }
+        if (e.target === adjustModal) {
+            adjustModal.style.display = 'none';
         }
     });
+    
+    // Adjust Hours modal handlers
+    document.querySelector('#adjust-hours-modal .modal-close')?.addEventListener('click', () => {
+        document.getElementById('adjust-hours-modal').style.display = 'none';
+    });
+    
+    document.querySelector('#adjust-hours-modal .modal-cancel')?.addEventListener('click', () => {
+        document.getElementById('adjust-hours-modal').style.display = 'none';
+    });
+    
+    document.getElementById('adjust-hours-form')?.addEventListener('submit', handleAdjustHours);
     
     loadMembersPage();
 }
@@ -660,11 +687,13 @@ if (window.location.pathname.endsWith('sessions.html')) {
         
         if (!date || !description) return;
         
+        const skipLog = getSkipLogValue('create-session-skip-log-checkbox');
+        
         try {
             const session = await apiCall('/api/sessions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ date, description, hours })
+                body: JSON.stringify({ date, description, hours, skipLog })
             });
             
             showMessage(`Session "${session.description}" created with ${session.hours} hour(s)!`, 'success');
@@ -696,9 +725,13 @@ if (window.location.pathname.endsWith('sessions.html')) {
             return;
         }
         
+        const skipLog = isSamUser && confirm('Skip logging this deletion? (Sam privilege)\nClick OK to skip logging, Cancel to log normally.');
+        
         try {
             await apiCall(`/api/sessions/${id}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ skipLog })
             });
             
             showMessage(`Session "${description}" deleted successfully!`, 'success');
@@ -715,6 +748,7 @@ if (window.location.pathname.endsWith('sessions.html')) {
         const date = document.getElementById('edit-session-date').value;
         const description = document.getElementById('edit-session-description').value.trim();
         const hours = parseFloat(document.getElementById('edit-session-hours').value) || 1;
+        const skipLog = getSkipLogValue('edit-session-skip-log-checkbox');
         
         if (!date || !description) return;
         
@@ -722,7 +756,7 @@ if (window.location.pathname.endsWith('sessions.html')) {
             await apiCall(`/api/sessions/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ date, description, hours })
+                body: JSON.stringify({ date, description, hours, skipLog })
             });
             
             showMessage(`Session updated successfully!`, 'success');
@@ -920,4 +954,120 @@ if (window.location.pathname.endsWith('settings.html')) {
     });
     
     loadUserInfo();
+}
+
+// ============================================
+// SAM SPECIAL PERMISSIONS FUNCTIONS
+// ============================================
+
+// Global variable to track if current user is sam
+let isSamUser = false;
+
+// Initialize Sam-specific UI elements
+async function initSamFeatures() {
+    try {
+        const response = await fetch('/api/check-auth');
+        const data = await response.json();
+        isSamUser = data.role === 'sam';
+        
+        if (isSamUser) {
+            // Show all "skip logging" checkboxes
+            const skipLogElements = [
+                'add-member-skip-log',
+                'edit-member-skip-log',
+                'create-session-skip-log',
+                'edit-session-skip-log',
+                'attendance-skip-log'
+            ];
+            skipLogElements.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) element.style.display = 'block';
+            });
+            
+            // Show audit log actions column
+            const auditHeader = document.getElementById('audit-log-actions-header');
+            if (auditHeader) auditHeader.style.display = 'table-cell';
+        }
+    } catch (error) {
+        console.error('Error initializing Sam features:', error);
+    }
+}
+
+// Manual Hours Adjustment Functions
+function showAdjustHoursModal(memberCode, memberName) {
+    const modal = document.getElementById('adjust-hours-modal');
+    document.getElementById('adjust-hours-member-code').value = memberCode;
+    document.getElementById('adjust-hours-member-name').value = memberName;
+    document.getElementById('adjust-hours-amount').value = '';
+    document.getElementById('adjust-hours-reason').value = '';
+    document.getElementById('adjust-hours-skip-log-checkbox').checked = false;
+    modal.style.display = 'flex';
+}
+
+// Handle manual hours adjustment form submission
+async function handleAdjustHours(event) {
+    event.preventDefault();
+    
+    const memberCode = document.getElementById('adjust-hours-member-code').value;
+    const hours = parseInt(document.getElementById('adjust-hours-amount').value);
+    const reason = document.getElementById('adjust-hours-reason').value;
+    const skipLog = document.getElementById('adjust-hours-skip-log-checkbox').checked;
+    
+    if (!hours || hours === 0) {
+        showMessage('Please enter a non-zero hour adjustment', 'error');
+        return;
+    }
+    
+    try {
+        await apiCall(`/api/members/${memberCode}/hours`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ hours, reason, skipLog })
+        });
+        
+        showMessage(`Hours adjusted successfully! ${hours > 0 ? 'Added' : 'Removed'} ${Math.abs(hours)} hour(s)`, 'success');
+        document.getElementById('adjust-hours-modal').style.display = 'none';
+        
+        // Reload members if we're on the members page
+        if (typeof loadMembers === 'function') {
+            loadMembers();
+        }
+    } catch (error) {
+        console.error('Error adjusting hours:', error);
+    }
+}
+
+// Delete Audit Log Entry
+async function deleteAuditLogEntry(index) {
+    if (!confirm('Are you sure you want to delete this audit log entry? This action cannot be undone.')) {
+        return;
+    }
+    
+    try {
+        await apiCall(`/api/audit-log/${index}`, {
+            method: 'DELETE'
+        });
+        
+        showMessage('Audit log entry deleted', 'success');
+        
+        // Reload audit log if we're on that page
+        if (typeof loadAuditLog === 'function') {
+            loadAuditLog();
+        }
+    } catch (error) {
+        console.error('Error deleting audit log entry:', error);
+    }
+}
+
+// Helper function to get skipLog value from checkbox
+function getSkipLogValue(checkboxId) {
+    const checkbox = document.getElementById(checkboxId);
+    return checkbox && checkbox.checked;
+}
+
+// Initialize Sam features on page load
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSamFeatures);
+} else {
+    initSamFeatures();
 }

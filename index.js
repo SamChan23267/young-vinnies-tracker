@@ -502,7 +502,7 @@ app.get('/api/sessions/:id', requireAuth, async (req, res) => {
 app.put('/api/sessions/:id/attendance', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const { attendees, individualHours } = req.body;
+    const { attendees, individualHours, skipLog } = req.body;
     
     if (!Array.isArray(attendees)) {
       return res.status(400).json({ error: 'Attendees must be an array' });
@@ -530,7 +530,7 @@ app.put('/api/sessions/:id/attendance', requireAuth, async (req, res) => {
       sessionId: id,
       attendees,
       individualHours
-    }, req.session.username);
+    }, req.session.username, skipLog);
     
     res.json(data.sessions[sessionIndex]);
   } catch (error) {
@@ -542,7 +542,7 @@ app.put('/api/sessions/:id/attendance', requireAuth, async (req, res) => {
 app.put('/api/sessions/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const { date, description, hours } = req.body;
+    const { date, description, hours, skipLog } = req.body;
     
     if (!date || !description) {
       return res.status(400).json({ error: 'Date and description are required' });
@@ -566,7 +566,7 @@ app.put('/api/sessions/:id', requireAuth, async (req, res) => {
     await logAudit('UPDATE_SESSION', {
       old: oldSession,
       new: data.sessions[sessionIndex]
-    }, req.session.username);
+    }, req.session.username, skipLog);
     
     res.json(data.sessions[sessionIndex]);
   } catch (error) {
@@ -578,6 +578,7 @@ app.put('/api/sessions/:id', requireAuth, async (req, res) => {
 app.delete('/api/sessions/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
+    const { skipLog } = req.body;
     const data = await readData();
     const sessionIndex = data.sessions.findIndex(s => s.id === id);
     
@@ -589,7 +590,7 @@ app.delete('/api/sessions/:id', requireAuth, async (req, res) => {
     data.sessions.splice(sessionIndex, 1);
     
     await writeData(data);
-    await logAudit('DELETE_SESSION', deletedSession, req.session.username);
+    await logAudit('DELETE_SESSION', deletedSession, req.session.username, skipLog);
     
     res.json({ success: true, message: 'Session deleted successfully' });
   } catch (error) {
