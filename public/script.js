@@ -1,5 +1,12 @@
 // Utility Functions
 
+// Helper function to display role (hides sam role)
+function getDisplayRole(role) {
+    if (role === 'sam') return 'Super Admin';
+    if (role === 'super_admin') return 'Super Admin';
+    return 'Admin';
+}
+
 // Check authentication on page load
 async function checkAuth() {
     try {
@@ -259,12 +266,13 @@ if (window.location.pathname.endsWith('audit-log.html')) {
 
 // Common initialization for all pages (except login)
 if (!window.location.pathname.endsWith('login.html')) {
-    // Show audit link and admin management link in nav for super admins
+    // Show audit link and admin management link in nav for super admins (including sam)
     async function initNav() {
         try {
             const response = await fetch('/api/check-auth');
             const data = await response.json();
-            if (data.role === 'super_admin') {
+            // Show admin features for both super_admin and sam roles
+            if (data.role === 'super_admin' || data.role === 'sam') {
                 const navAudit = document.getElementById('nav-audit');
                 if (navAudit) {
                     navAudit.style.display = 'block';
@@ -870,7 +878,7 @@ if (window.location.pathname.endsWith('settings.html')) {
             
             if (data.authenticated) {
                 document.getElementById('user-username').textContent = data.username;
-                document.getElementById('user-role').textContent = data.role === 'super_admin' ? 'Super Admin' : 'Admin';
+                document.getElementById('user-role').textContent = getDisplayRole(data.role);
                 document.getElementById('user-display-name').textContent = data.displayName || data.username;
             }
         } catch (error) {

