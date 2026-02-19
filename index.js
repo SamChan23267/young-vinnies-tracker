@@ -707,7 +707,8 @@ app.get('/api/audit-log', requireSuperAdmin, async (req, res) => {
     if (req.session.role !== 'sam') {
       logs = logs.filter(log => 
         log.action !== 'MANUAL_HOURS' && 
-        log.action !== 'DELETE_LOG'
+        log.action !== 'DELETE_LOG' &&
+        log.action !== 'ADJUST_HOURS'
       );
     }
     

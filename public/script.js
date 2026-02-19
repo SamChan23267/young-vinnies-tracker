@@ -953,6 +953,9 @@ if (window.location.pathname.endsWith('settings.html')) {
         }
     });
     
+    // Logout button handler
+    document.getElementById('logout-btn')?.addEventListener('click', logout);
+    
     loadUserInfo();
 }
 
