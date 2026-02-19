@@ -143,7 +143,12 @@ async function writeData(data) {
 }
 
 // Helper function to log audit entry
-async function logAudit(action, data, username) {
+async function logAudit(action, data, username, skipLog = false) {
+  // If skipLog is true, don't log the action (sam's privilege)
+  if (skipLog) {
+    return;
+  }
+  
   try {
     const logData = await fs.readFile(AUDIT_LOG_FILE, 'utf8');
     const logs = JSON.parse(logData);
@@ -269,7 +274,7 @@ app.get('/api/members', requireAuth, async (req, res) => {
 // POST /api/members - Add a new member
 app.post('/api/members', requireAuth, async (req, res) => {
   try {
-    const { name, yearLevel } = req.body;
+    const { name, yearLevel, skipLog } = req.body;
     
     if (!name || name.trim() === '') {
       return res.status(400).json({ error: 'Name is required' });
@@ -282,12 +287,13 @@ app.post('/api/members', requireAuth, async (req, res) => {
     const newMember = {
       name: name.trim(),
       code,
-      yearLevel: yearLevel || ''
+      yearLevel: yearLevel || '',
+      manualHours: 0  // Initialize manual hours
     };
     
     data.members.push(newMember);
     await writeData(data);
-    await logAudit('ADD_MEMBER', newMember, req.session.username);
+    await logAudit('ADD_MEMBER', newMember, req.session.username, skipLog);
     
     res.status(201).json(newMember);
   } catch (error) {
@@ -299,7 +305,7 @@ app.post('/api/members', requireAuth, async (req, res) => {
 app.put('/api/members/:code', requireAuth, async (req, res) => {
   try {
     const { code } = req.params;
-    const { name, newCode, yearLevel } = req.body;
+    const { name, newCode, yearLevel, skipLog } = req.body;
     
     if (!name || name.trim() === '') {
       return res.status(400).json({ error: 'Name is required' });
@@ -323,11 +329,15 @@ app.put('/api/members/:code', requireAuth, async (req, res) => {
     const oldMember = { ...data.members[memberIndex] };
     const updatedCode = newCode || code;
     
+    // Preserve manualHours if it exists
+    const manualHours = data.members[memberIndex].manualHours || 0;
+    
     // Update member
     data.members[memberIndex] = {
       name: name.trim(),
       code: updatedCode,
-      yearLevel: yearLevel || ''
+      yearLevel: yearLevel || '',
+      manualHours: manualHours
     };
     
     // If code changed, update attendee lists in sessions
@@ -341,7 +351,7 @@ app.put('/api/members/:code', requireAuth, async (req, res) => {
     }
     
     await writeData(data);
-    await logAudit('UPDATE_MEMBER', { old: oldMember, new: data.members[memberIndex] }, req.session.username);
+    await logAudit('UPDATE_MEMBER', { old: oldMember, new: data.members[memberIndex] }, req.session.username, skipLog);
     
     res.json(data.members[memberIndex]);
   } catch (error) {
@@ -353,6 +363,7 @@ app.put('/api/members/:code', requireAuth, async (req, res) => {
 app.delete('/api/members/:code', requireAuth, async (req, res) => {
   try {
     const { code } = req.params;
+    const { skipLog } = req.body;
     const data = await readData();
     const memberIndex = data.members.findIndex(m => m.code === code);
     
@@ -371,11 +382,60 @@ app.delete('/api/members/:code', requireAuth, async (req, res) => {
     data.members.splice(memberIndex, 1);
     
     await writeData(data);
-    await logAudit('DELETE_MEMBER', deletedMember, req.session.username);
+    await logAudit('DELETE_MEMBER', deletedMember, req.session.username, skipLog);
     
     res.json({ success: true, message: 'Member deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete member' });
+  }
+});
+
+// POST /api/members/:code/hours - Manually adjust member hours (sam only)
+app.post('/api/members/:code/hours', requireAuth, async (req, res) => {
+  try {
+    // Only sam role can manually adjust hours
+    if (req.session.role !== 'sam') {
+      return res.status(403).json({ error: 'Only sam can manually adjust hours' });
+    }
+    
+    const { code } = req.params;
+    const { hours, reason, skipLog } = req.body;
+    
+    if (hours === undefined || hours === null) {
+      return res.status(400).json({ error: 'Hours value is required' });
+    }
+    
+    const data = await readData();
+    const memberIndex = data.members.findIndex(m => m.code === code);
+    
+    if (memberIndex === -1) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+    
+    // Initialize manualHours if it doesn't exist
+    if (!data.members[memberIndex].manualHours) {
+      data.members[memberIndex].manualHours = 0;
+    }
+    
+    // Add hours (can be positive or negative)
+    const hoursAdjusted = parseFloat(hours);
+    data.members[memberIndex].manualHours += hoursAdjusted;
+    
+    await writeData(data);
+    await logAudit('ADJUST_HOURS', {
+      member: data.members[memberIndex].name,
+      code: code,
+      hoursAdjusted: hoursAdjusted,
+      newManualTotal: data.members[memberIndex].manualHours,
+      reason: reason || 'No reason provided'
+    }, req.session.username, skipLog);
+    
+    res.json({
+      success: true,
+      member: data.members[memberIndex]
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to adjust hours' });
   }
 });
 
@@ -392,7 +452,7 @@ app.get('/api/sessions', requireAuth, async (req, res) => {
 // POST /api/sessions - Create a new session
 app.post('/api/sessions', requireAuth, async (req, res) => {
   try {
-    const { date, description, hours } = req.body;
+    const { date, description, hours, skipLog } = req.body;
     
     if (!date || !description) {
       return res.status(400).json({ error: 'Date and description are required' });
@@ -412,7 +472,7 @@ app.post('/api/sessions', requireAuth, async (req, res) => {
     
     data.sessions.push(newSession);
     await writeData(data);
-    await logAudit('CREATE_SESSION', newSession, req.session.username);
+    await logAudit('CREATE_SESSION', newSession, req.session.username, skipLog);
     
     res.status(201).json(newSession);
   } catch (error) {
@@ -643,6 +703,32 @@ app.get('/api/audit-log', requireSuperAdmin, async (req, res) => {
     res.json(logs);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch audit log' });
+  }
+});
+
+// DELETE /api/audit-log/:index - Delete audit log entry (sam only)
+app.delete('/api/audit-log/:index', requireAuth, async (req, res) => {
+  try {
+    // Only sam role can delete logs
+    if (req.session.role !== 'sam') {
+      return res.status(403).json({ error: 'Only sam can delete audit logs' });
+    }
+    
+    const index = parseInt(req.params.index);
+    const logData = await fs.readFile(AUDIT_LOG_FILE, 'utf8');
+    const logs = JSON.parse(logData);
+    
+    if (index < 0 || index >= logs.length) {
+      return res.status(400).json({ error: 'Invalid log index' });
+    }
+    
+    // Remove the log entry
+    logs.splice(index, 1);
+    await fs.writeFile(AUDIT_LOG_FILE, JSON.stringify(logs, null, 2));
+    
+    res.json({ message: 'Log entry deleted' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete log entry' });
   }
 });
 
