@@ -22,9 +22,10 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://vercel.live", "https://*.vercel.live"],
       scriptSrcAttr: ["'unsafe-inline'"], // Allow inline event handlers (onclick, etc.)
       imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "https://vercel.live", "https://*.vercel.live", "wss://*.vercel.live"],
     },
   },
 }));
