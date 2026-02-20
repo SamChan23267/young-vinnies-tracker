@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Young Vinnies Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌟 Young Vinnies Volunteer Hour Tracker</h1>
+            <p>Dashboard Overview</p>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="main-nav">
+            <ul>
+                <li><a href="index.html" class="active">🏠 Dashboard</a></li>
+                <li><a href="members.html">👥 Members</a></li>
+                <li><a href="sessions.html">📅 Sessions</a></li>
+                <li><a href="export.html">📊 Export Data</a></li>
+                <li><a href="settings.html">⚙️ Settings</a></li>
+                <li id="nav-audit" style="display: none;"><a href="audit-log.html">🔐 Audit Log</a></li>
+                <li id="nav-admin-management" style="display: none;"><a href="admin-management.html">👤 User Management</a></li>
+            </ul>
+        </nav>
+
+        <main>
+            <!-- Dashboard Statistics -->
+            <section class="dashboard-stats">
+                <div class="stat-card">
+                    <div class="stat-icon">👥</div>
+                    <div class="stat-content">
+                        <h3 id="total-members">0</h3>
+                        <p>Total Members</p>
+                    </div>
+                    <a href="members.html" class="stat-link">Manage →</a>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">📅</div>
+                    <div class="stat-content">
+                        <h3 id="total-sessions">0</h3>
+                        <p>Total Sessions</p>
+                    </div>
+                    <a href="sessions.html" class="stat-link">Manage →</a>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-content">
+                        <h3 id="total-attendances">0</h3>
+                        <p>Total Hours</p>
+                    </div>
+                    <a href="export.html" class="stat-link">Export →</a>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-content">
+                        <h3 id="avg-attendance">0</h3>
+                        <p>Avg Attendance</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Recent Activity -->
+            <section class="card">
+                <h2>📋 Recent Sessions</h2>
+                <div id="recent-sessions-list">
+                    <!-- Recent sessions will be loaded here -->
+                </div>
+                <a href="sessions.html" class="btn btn-primary">View All Sessions</a>
+            </section>
+
+            <!-- Top Volunteers -->
+            <section class="card">
+                <h2>🌟 Top Volunteers</h2>
+                <div id="top-volunteers-list">
+                    <!-- Top volunteers will be loaded here -->
+                </div>
+                <a href="members.html" class="btn btn-primary">View All Members</a>
+            </section>
+
+            <!-- Quick Actions -->
+            <section class="card">
+                <h2>⚡ Quick Actions</h2>
+                <div class="quick-actions">
+                    <a href="members.html" class="btn btn-success">Add New Member</a>
+                    <a href="sessions.html" class="btn btn-success">Create New Session</a>
+                    <a href="export.html" class="btn btn-info">Export Data</a>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 Young Vinnies Volunteer Hour Tracker</p>
+        </footer>
+    </div>
+
+    <div id="message-container"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>

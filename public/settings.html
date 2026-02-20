@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Young Vinnies Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌟 Young Vinnies Volunteer Hour Tracker</h1>
+            <p>Settings</p>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="main-nav">
+            <ul>
+                <li><a href="index.html">🏠 Dashboard</a></li>
+                <li><a href="members.html">👥 Members</a></li>
+                <li><a href="sessions.html">📅 Sessions</a></li>
+                <li><a href="export.html">📊 Export Data</a></li>
+                <li><a href="settings.html" class="active">⚙️ Settings</a></li>
+                <li id="nav-audit" style="display: none;"><a href="audit-log.html">🔐 Audit Log</a></li>
+                <li id="nav-admin-management" style="display: none;"><a href="admin-management.html">👤 User Management</a></li>
+            </ul>
+        </nav>
+
+        <main>
+            <!-- Change Password Section -->
+            <section class="card">
+                <h2>⚙️ Account Settings</h2>
+                
+                <div class="form-section">
+                    <h3>Change Password</h3>
+                    <form id="change-password-form">
+                        <div class="form-group">
+                            <label for="current-password">Current Password:</label>
+                            <input type="password" id="current-password" required placeholder="Enter current password">
+                        </div>
+                        <div class="form-group">
+                            <label for="new-password">New Password:</label>
+                            <input type="password" id="new-password" required placeholder="Enter new password (min 6 characters)">
+                        </div>
+                        <div class="form-group">
+                            <label for="confirm-password">Confirm New Password:</label>
+                            <input type="password" id="confirm-password" required placeholder="Confirm new password">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Change Password</button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- User Info Section -->
+            <section class="card">
+                <h2>👤 Account Information</h2>
+                <div class="info-section">
+                    <p><strong>Username:</strong> <span id="user-username">-</span></p>
+                    <p><strong>Role:</strong> <span id="user-role">-</span></p>
+                    <p><strong>Display Name:</strong> <span id="user-display-name">-</span></p>
+                </div>
+            </section>
+
+            <!-- Logout Section -->
+            <section class="card">
+                <h2>🚪 Session Management</h2>
+                <div class="form-section">
+                    <p>Click the button below to securely log out of your account.</p>
+                    <button id="logout-btn" class="btn btn-danger" style="margin-top: 15px;">Logout</button>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 Young Vinnies Volunteer Hour Tracker</p>
+        </footer>
+    </div>
+
+    <div id="message-container"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>

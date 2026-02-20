@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Export Data - Young Vinnies Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌟 Young Vinnies Volunteer Hour Tracker</h1>
+            <p>Export volunteer data</p>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="main-nav">
+            <ul>
+                <li><a href="index.html">🏠 Dashboard</a></li>
+                <li><a href="members.html">👥 Members</a></li>
+                <li><a href="sessions.html">📅 Sessions</a></li>
+                <li><a href="export.html" class="active">📊 Export Data</a></li>
+                <li><a href="settings.html">⚙️ Settings</a></li>
+                <li id="nav-audit" style="display: none;"><a href="audit-log.html">🔐 Audit Log</a></li>
+                <li id="nav-admin-management" style="display: none;"><a href="admin-management.html">👤 User Management</a></li>
+            </ul>
+        </nav>
+
+        <main>
+            <!-- Export Section -->
+            <section class="card">
+                <h2>📊 Data Export</h2>
+                <p>Download session attendance data. Members are repeated based on hours worked (e.g., 4 hours = name appears 4 times).</p>
+                
+                <div class="export-options">
+                    <h3>Export Settings</h3>
+                    
+                    <div class="form-group">
+                        <label for="export-type">Export Type:</label>
+                        <select id="export-type" class="form-select">
+                            <option value="csv">CSV File</option>
+                            <option value="googlesheet">Google Sheet (Coming Soon)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="orientation">Orientation:</label>
+                        <select id="orientation" class="form-select">
+                            <option value="horizontal">Horizontal (one row per session)</option>
+                            <option value="vertical">Vertical (one row per member per hour)</option>
+                        </select>
+                        <small style="color: #666; display: block; margin-top: 5px;">Members are repeated based on hours worked</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="member-display">Member Display:</label>
+                        <select id="member-display" class="form-select">
+                            <option value="code">Code only</option>
+                            <option value="name">Name only</option>
+                            <option value="both">Both (Code and Name)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="date-range-start">Date Range (Optional):</label>
+                        <div class="date-range-inputs">
+                            <input type="date" id="date-range-start" class="form-input" placeholder="Start date">
+                            <span>to</span>
+                            <input type="date" id="date-range-end" class="form-input" placeholder="End date">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Session Selection Section -->
+            <section class="card">
+                <h3>Select Sessions to Export</h3>
+                <p>Choose specific sessions or export all sessions.</p>
+                
+                <div class="session-selection-controls">
+                    <button id="select-all-sessions" class="btn btn-secondary">Select All</button>
+                    <button id="deselect-all-sessions" class="btn btn-secondary">Deselect All</button>
+                </div>
+
+                <div id="session-selection-list" class="session-selection-list">
+                    <!-- Session checkboxes will be loaded here -->
+                </div>
+
+                <div class="export-actions">
+                    <button id="export-selected-btn" class="btn btn-success">Export Selected Sessions</button>
+                    <button id="export-all-btn" class="btn btn-primary">Export All Sessions</button>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 Young Vinnies Volunteer Hour Tracker</p>
+        </footer>
+    </div>
+
+    <div id="message-container"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sessions - Young Vinnies Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌟 Young Vinnies Volunteer Hour Tracker</h1>
+            <p>Manage volunteer sessions</p>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="main-nav">
+            <ul>
+                <li><a href="index.html">🏠 Dashboard</a></li>
+                <li><a href="members.html">👥 Members</a></li>
+                <li><a href="sessions.html" class="active">📅 Sessions</a></li>
+                <li><a href="export.html">📊 Export Data</a></li>
+                <li><a href="settings.html">⚙️ Settings</a></li>
+                <li id="nav-audit" style="display: none;"><a href="audit-log.html">🔐 Audit Log</a></li>
+                <li id="nav-admin-management" style="display: none;"><a href="admin-management.html">👤 User Management</a></li>
+            </ul>
+        </nav>
+
+        <main>
+            <!-- Session Management Section -->
+            <section class="card">
+                <h2>📅 Session Management</h2>
+                
+                <div class="form-section">
+                    <h3>Create New Session</h3>
+                    <form id="create-session-form">
+                        <div class="form-group">
+                            <label for="session-date">Session Date:</label>
+                            <input type="date" id="session-date" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="session-description">Description:</label>
+                            <input type="text" id="session-description" required placeholder="e.g., Beach Cleanup at Mission Bay">
+                        </div>
+                        <div class="form-group">
+                            <label for="session-hours">Hours:</label>
+                            <input type="number" id="session-hours" min="1" max="24" step="1" value="1" required>
+                            <small style="color: #666; display: block; margin-top: 5px;">Default hours for this session (whole numbers only)</small>
+                        </div>
+                        <!-- Sam-only: Skip logging checkbox -->
+                        <div class="form-group" id="create-session-skip-log" style="display: none;">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="create-session-skip-log-checkbox">
+                                🔒 Don't log this action (Sam privilege)
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Create Session</button>
+                    </form>
+                </div>
+
+                <div class="search-section">
+                    <input type="text" id="session-search" class="search-input" placeholder="🔍 Search sessions by description or date...">
+                    <div class="date-range-filter">
+                        <label>Date Range:</label>
+                        <input type="date" id="session-start-date" placeholder="Start date">
+                        <span>to</span>
+                        <input type="date" id="session-end-date" placeholder="End date">
+                        <button id="clear-date-filter" class="btn btn-secondary">Clear</button>
+                    </div>
+                </div>
+
+                <div class="table-section">
+                    <h3>All Sessions (<span id="session-count">0</span>)</h3>
+                    <div id="sessions-list-container">
+                        <div id="sessions-list">
+                            <!-- Sessions will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 Young Vinnies Volunteer Hour Tracker</p>
+        </footer>
+    </div>
+
+    <!-- Edit Session Modal -->
+    <div id="edit-session-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <h2>Edit Session</h2>
+            <form id="edit-session-form">
+                <input type="hidden" id="edit-session-id">
+                <div class="form-group">
+                    <label for="edit-session-date">Session Date:</label>
+                    <input type="date" id="edit-session-date" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-session-description">Description:</label>
+                    <input type="text" id="edit-session-description" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-session-hours">Hours:</label>
+                    <input type="number" id="edit-session-hours" min="1" max="24" step="1" value="1" required>
+                </div>
+                <!-- Sam-only: Skip logging checkbox -->
+                <div class="form-group" id="edit-session-skip-log" style="display: none;">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="edit-session-skip-log-checkbox">
+                        🔒 Don't log this action (Sam privilege)
+                    </label>
+                </div>
+                <div class="modal-buttons">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="button" class="btn btn-secondary modal-cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="message-container"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>

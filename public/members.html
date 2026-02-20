@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Members - Young Vinnies Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌟 Young Vinnies Volunteer Hour Tracker</h1>
+            <p>Manage volunteer members</p>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="main-nav">
+            <ul>
+                <li><a href="index.html">🏠 Dashboard</a></li>
+                <li><a href="members.html" class="active">👥 Members</a></li>
+                <li><a href="sessions.html">📅 Sessions</a></li>
+                <li><a href="export.html">📊 Export Data</a></li>
+                <li><a href="settings.html">⚙️ Settings</a></li>
+                <li id="nav-audit" style="display: none;"><a href="audit-log.html">🔐 Audit Log</a></li>
+                <li id="nav-admin-management" style="display: none;"><a href="admin-management.html">👤 User Management</a></li>
+            </ul>
+        </nav>
+
+        <main>
+            <!-- Member Management Section -->
+            <section class="card">
+                <h2>👥 Member Management</h2>
+                
+                <div class="form-section">
+                    <h3>Add New Member</h3>
+                    <form id="add-member-form">
+                        <div class="form-group">
+                            <label for="member-name">Member Name:</label>
+                            <input type="text" id="member-name" required placeholder="Enter member name">
+                        </div>
+                        <div class="form-group">
+                            <label for="member-year-level">Year Level:</label>
+                            <input type="number" id="member-year-level" placeholder="Enter Year Level" min="1" step="1">
+                        </div>
+                        <!-- Sam-only: Skip logging checkbox -->
+                        <div class="form-group" id="add-member-skip-log" style="display: none;">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="add-member-skip-log-checkbox">
+                                🔒 Don't log this action (Sam privilege)
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Add Member</button>
+                    </form>
+                </div>
+
+                <div class="search-section">
+                    <input type="text" id="member-search" class="search-input" placeholder="🔍 Search members...">
+                </div>
+
+                <!-- Filter and Sort Section -->
+                <div class="filter-section" style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 10px;">
+                        <!-- Sort Dropdown -->
+                        <div class="form-group">
+                            <label for="member-sort">Sort By:</label>
+                            <select id="member-sort" class="form-control">
+                                <option value="">Default</option>
+                                <option value="year-asc">Year Level (Ascending)</option>
+                                <option value="year-desc">Year Level (Descending)</option>
+                                <option value="hours-asc">Total Hours (Ascending)</option>
+                                <option value="hours-desc">Total Hours (Descending)</option>
+                            </select>
+                        </div>
+
+                        <!-- Hours Range Filter -->
+                        <div class="form-group">
+                            <label>Hours Range:</label>
+                            <div style="display: flex; gap: 5px; align-items: center;">
+                                <input type="number" id="hours-min" class="form-control" placeholder="Min" min="0" step="1" style="width: 80px;">
+                                <span>to</span>
+                                <input type="number" id="hours-max" class="form-control" placeholder="Max" min="0" step="1" style="width: 80px;">
+                            </div>
+                        </div>
+
+                        <!-- Clear Filters Button -->
+                        <div class="form-group" style="display: flex; align-items: flex-end;">
+                            <button id="clear-filters-btn" class="btn btn-secondary" style="width: 100%;">Clear Filters</button>
+                        </div>
+                    </div>
+
+                    <!-- Year Level Filter -->
+                    <div class="form-group">
+                        <label>Filter by Year Level:</label>
+                        <div id="year-level-filters" style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 5px;">
+                            <!-- Checkboxes will be populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-section">
+                    <h3>Current Members (<span id="member-count">0</span><span id="member-count-total"></span>)</h3>
+                    <div id="members-table-container">
+                        <table id="members-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Code</th>
+                                    <th>Year Level</th>
+                                    <th>Total Hours</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="members-tbody">
+                                <!-- Members will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 Young Vinnies Volunteer Hour Tracker</p>
+        </footer>
+    </div>
+
+    <!-- Edit Member Modal -->
+    <div id="edit-member-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <h2>Edit Member</h2>
+            <form id="edit-member-form">
+                <input type="hidden" id="edit-member-old-code">
+                <div class="form-group">
+                    <label for="edit-member-name">Member Name:</label>
+                    <input type="text" id="edit-member-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-member-code">Member Code:</label>
+                    <input type="text" id="edit-member-code" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-member-year-level">Year Level:</label>
+                    <input type="text" id="edit-member-year-level">
+                </div>
+                <!-- Sam-only: Skip logging checkbox -->
+                <div class="form-group" id="edit-member-skip-log" style="display: none;">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="edit-member-skip-log-checkbox">
+                        🔒 Don't log this action (Sam privilege)
+                    </label>
+                </div>
+                <div class="modal-buttons">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="button" class="btn btn-secondary modal-cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Sam-only: Manual Hours Adjustment Modal -->
+    <div id="adjust-hours-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <h2>⏱️ Adjust Member Hours</h2>
+            <p class="modal-subtitle">Manually add or subtract hours for this member</p>
+            <form id="adjust-hours-form">
+                <input type="hidden" id="adjust-hours-member-code">
+                <div class="form-group">
+                    <label for="adjust-hours-member-name">Member:</label>
+                    <input type="text" id="adjust-hours-member-name" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="adjust-hours-amount">Hours Adjustment:</label>
+                    <input type="number" id="adjust-hours-amount" required step="1" placeholder="e.g., 5 or -3">
+                    <small>Use positive numbers to add hours, negative to subtract</small>
+                </div>
+                <div class="form-group">
+                    <label for="adjust-hours-reason">Reason:</label>
+                    <textarea id="adjust-hours-reason" rows="3" placeholder="Why are you adjusting hours?"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="adjust-hours-skip-log-checkbox">
+                        🔒 Don't log this action (Sam privilege)
+                    </label>
+                </div>
+                <div class="modal-buttons">
+                    <button type="submit" class="btn btn-primary">💾 Apply Adjustment</button>
+                    <button type="button" class="btn btn-secondary modal-cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="message-container"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>

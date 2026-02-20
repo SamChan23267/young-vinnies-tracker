@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management - Young Vinnies Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌟 Young Vinnies Volunteer Hour Tracker</h1>
+            <p>User Management</p>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="main-nav">
+            <ul>
+                <li><a href="index.html">🏠 Dashboard</a></li>
+                <li><a href="members.html">👥 Members</a></li>
+                <li><a href="sessions.html">📅 Sessions</a></li>
+                <li><a href="export.html">📊 Export Data</a></li>
+                <li><a href="settings.html">⚙️ Settings</a></li>
+                <li id="nav-audit" style="display: none;"><a href="audit-log.html">🔐 Audit Log</a></li>
+                <li id="nav-admin-management"><a href="admin-management.html" class="active">👤 User Management</a></li>
+            </ul>
+        </nav>
+
+        <main>
+            <!-- System Statistics Section -->
+            <section class="card">
+                <h2>System Statistics</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3 id="stat-users">0</h3>
+                        <p>Total Users</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="stat-super-admins">0</h3>
+                        <p>Super Admins</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="stat-admins">0</h3>
+                        <p>Admins</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="stat-members">0</h3>
+                        <p>Total Members</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="stat-sessions">0</h3>
+                        <p>Total Sessions</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="stat-hours">0</h3>
+                        <p>Total Hours</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="stat-logs">0</h3>
+                        <p>Audit Logs</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Add User Section -->
+            <section class="card">
+                <h2>Add New User</h2>
+                <form id="add-user-form">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="new-username">Username:</label>
+                            <input type="text" id="new-username" required minlength="3">
+                        </div>
+                        <div class="form-group">
+                            <label for="new-password">Password:</label>
+                            <input type="password" id="new-password" required minlength="6">
+                        </div>
+                        <div class="form-group">
+                            <label for="new-role">Role:</label>
+                            <select id="new-role" required>
+                                <option value="admin">Admin</option>
+                                <option value="super_admin">Super Admin</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="new-display-name">Display Name:</label>
+                            <input type="text" id="new-display-name" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add User</button>
+                </form>
+            </section>
+
+            <!-- Users List Section -->
+            <section class="card">
+                <h2>All Users <span id="user-count" class="badge">0</span></h2>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Display Name</th>
+                                <th>Role</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-list">
+                            <!-- Users will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Recent Activity Section -->
+            <section class="card">
+                <h2>Recent Activity</h2>
+                <div id="recent-activity">
+                    <!-- Recent activity will be populated here -->
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 Young Vinnies Volunteer Hour Tracker</p>
+        </footer>
+    </div>
+
+    <!-- Edit User Modal -->
+    <div id="edit-user-modal" class="modal">
+        <div class="modal-content">
+            <h2>Edit User</h2>
+            <form id="edit-user-form">
+                <input type="hidden" id="edit-username">
+                <div class="form-group">
+                    <label for="edit-display-name">Display Name:</label>
+                    <input type="text" id="edit-display-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-role">Role:</label>
+                    <select id="edit-role" required>
+                        <option value="admin">Admin</option>
+                        <option value="super_admin">Super Admin</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="edit-password">New Password (leave blank to keep current):</label>
+                    <input type="password" id="edit-password" minlength="6">
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeEditUserModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        // Check if user is super admin or sam
+        fetch('/api/check-auth')
+            .then(response => response.json())
+            .then(data => {
+                if (data.role !== 'super_admin' && data.role !== 'sam') {
+                    alert('Access denied. Super admin access required.');
+                    window.location.href = 'index.html';
+                }
+            })
+            .catch(error => {
+                console.error('Auth check failed:', error);
+                window.location.href = 'login.html';
+            });
+
+        // Load initial data
+        loadSystemStats();
+        loadUsers();
+
+        // Add user form submission
+        document.getElementById('add-user-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('new-username').value;
+            const password = document.getElementById('new-password').value;
+            const role = document.getElementById('new-role').value;
+            const displayName = document.getElementById('new-display-name').value;
+            
+            try {
+                const response = await fetch('/api/users', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password, role, displayName })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert('User added successfully!');
+                    document.getElementById('add-user-form').reset();
+                    loadUsers();
+                    loadSystemStats();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Failed to add user');
+            }
+        });
+
+        // Load system statistics
+        async function loadSystemStats() {
+            try {
+                const response = await fetch('/api/system-stats');
+                const stats = await response.json();
+                
+                document.getElementById('stat-users').textContent = stats.totalUsers;
+                document.getElementById('stat-super-admins').textContent = stats.superAdmins;
+                document.getElementById('stat-admins').textContent = stats.admins;
+                document.getElementById('stat-members').textContent = stats.totalMembers;
+                document.getElementById('stat-sessions').textContent = stats.totalSessions;
+                document.getElementById('stat-hours').textContent = stats.totalHours + ' hrs';
+                document.getElementById('stat-logs').textContent = stats.totalAuditLogs;
+                
+                // Display recent activity
+                const activityDiv = document.getElementById('recent-activity');
+                if (stats.recentActivity && stats.recentActivity.length > 0) {
+                    activityDiv.innerHTML = '<ul class="activity-list">' +
+                        stats.recentActivity.map(log => `
+                            <li>
+                                <span class="activity-time">${new Date(log.timestamp).toLocaleString()}</span>
+                                <span class="activity-action ${log.action}">${log.action}</span>
+                                <span class="activity-user">by ${log.username}</span>
+                            </li>
+                        `).join('') +
+                        '</ul>';
+                } else {
+                    activityDiv.innerHTML = '<p>No recent activity</p>';
+                }
+            } catch (error) {
+                console.error('Failed to load system stats:', error);
+            }
+        }
+
+        // Load all users
+        async function loadUsers() {
+            try {
+                const response = await fetch('/api/users');
+                const users = await response.json();
+                
+                document.getElementById('user-count').textContent = users.length;
+                
+                const tbody = document.getElementById('users-list');
+                tbody.innerHTML = users.map(user => `
+                    <tr>
+                        <td>${user.username}</td>
+                        <td>${user.displayName}</td>
+                        <td><span class="badge ${user.role === 'super_admin' ? 'badge-primary' : 'badge-secondary'}">${user.role === 'super_admin' ? 'Super Admin' : 'Admin'}</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-warning" onclick="openEditUserModal('${user.username}', '${user.displayName}', '${user.role}')">Edit</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteUser('${user.username}')">Delete</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Failed to load users:', error);
+            }
+        }
+
+        // Open edit user modal
+        function openEditUserModal(username, displayName, role) {
+            document.getElementById('edit-username').value = username;
+            document.getElementById('edit-display-name').value = displayName;
+            document.getElementById('edit-role').value = role;
+            document.getElementById('edit-password').value = '';
+            document.getElementById('edit-user-modal').style.display = 'flex';
+        }
+
+        // Close edit user modal
+        function closeEditUserModal() {
+            document.getElementById('edit-user-modal').style.display = 'none';
+        }
+
+        // Edit user form submission
+        document.getElementById('edit-user-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('edit-username').value;
+            const displayName = document.getElementById('edit-display-name').value;
+            const role = document.getElementById('edit-role').value;
+            const password = document.getElementById('edit-password').value;
+            
+            const updates = { displayName, role };
+            if (password) {
+                updates.password = password;
+            }
+            
+            try {
+                const response = await fetch(`/api/users/${username}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updates)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert('User updated successfully!');
+                    closeEditUserModal();
+                    loadUsers();
+                    loadSystemStats();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Failed to update user');
+            }
+        });
+
+        // Delete user
+        async function deleteUser(username) {
+            if (!confirm(`Are you sure you want to delete user "${username}"?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/users/${username}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert('User deleted successfully!');
+                    loadUsers();
+                    loadSystemStats();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Failed to delete user');
+            }
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('edit-user-modal');
+            if (event.target === modal) {
+                closeEditUserModal();
+            }
+        }
+    </script>
+</body>
+</html>
