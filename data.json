@@ -1,11 +1,4 @@
 {
-  "members": [
-    {
-      "name": "Test Student",
-      "code": "TESTS",
-      "yearLevel": "Year 10",
-      "manualHours": 0
-    }
-  ],
+  "members": [],
   "sessions": []
 }

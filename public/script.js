@@ -260,7 +260,6 @@ if (window.location.pathname.endsWith('audit-log.html')) {
                             <button class="btn ${isHidden ? 'btn-warning' : 'btn-secondary'}" onclick="toggleHideAuditLogEntry(${index})" title="${isHidden ? 'Unhide this log entry' : 'Hide this log entry'}">
                                 ${isHidden ? '👁️ Show' : '🔒 Hide'}
                             </button>
-                            <button class="btn btn-delete" onclick="deleteAuditLogEntry(${index})" title="Delete this log entry">🗑️</button>
                         </td>` : ''}
                     </tr>
                 `;
@@ -1205,53 +1204,6 @@ async function handleAdjustHours(event) {
 }
 
 // Delete Audit Log Entry
-async function deleteAuditLogEntry(index) {
-    if (!confirm('Are you sure you want to delete this audit log entry? This action cannot be undone.')) {
-        return;
-    }
-    
-    try {
-        await apiCall(`/api/audit-log/${index}`, {
-            method: 'DELETE'
-        });
-        
-        showMessage('Audit log entry deleted', 'success');
-        
-        // Remove the row from DOM immediately instead of reloading
-        const row = document.querySelector(`tr.audit-log-row[data-index="${index}"]`);
-        if (row) {
-            row.remove();
-            
-            // Update remaining row indices
-            const allRows = document.querySelectorAll('tr.audit-log-row');
-            allRows.forEach((r, i) => {
-                if (parseInt(r.dataset.index) > index) {
-                    r.dataset.index = parseInt(r.dataset.index) - 1;
-                    // Update button onclick handlers
-                    const hideBtn = r.querySelector('.btn-warning, .btn-secondary');
-                    const deleteBtn = r.querySelector('.btn-delete');
-                    if (hideBtn) {
-                        hideBtn.setAttribute('onclick', `toggleHideAuditLogEntry(${parseInt(r.dataset.index)})`);
-                    }
-                    if (deleteBtn) {
-                        deleteBtn.setAttribute('onclick', `deleteAuditLogEntry(${parseInt(r.dataset.index)})`);
-                    }
-                }
-            });
-            
-            // Check if table is now empty
-            if (allRows.length === 1) {
-                const tbody = document.getElementById('audit-log-tbody');
-                const isSamUser = await checkIfSamUser();
-                tbody.innerHTML = `<tr><td colspan="${isSamUser ? '5' : '4'}" class="empty-state"><p>No audit log entries yet.</p></td></tr>`;
-            }
-        }
-    } catch (error) {
-        console.error('Error deleting audit log entry:', error);
-        showMessage('Failed to delete audit log entry', 'error');
-    }
-}
-
 // Toggle hide/unhide audit log entry (sam only)
 async function toggleHideAuditLogEntry(index) {
     try {

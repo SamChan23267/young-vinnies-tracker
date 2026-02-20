@@ -75,7 +75,72 @@ Before going live, verify:
 
 ## Deployment Options
 
-### Option 1: Heroku
+### Option 1: Vercel (Recommended)
+
+**Best for:** Quick deployment, automatic HTTPS, free tier
+
+1. **Install Vercel CLI**
+   ```bash
+   npm install -g vercel
+   ```
+
+2. **Login to Vercel**
+   ```bash
+   vercel login
+   ```
+
+3. **Deploy from Project Directory**
+   ```bash
+   vercel
+   ```
+   
+   Follow the prompts:
+   - Set up and deploy? Yes
+   - Which scope? Select your account
+   - Link to existing project? No
+   - Project name? young-vinnies-tracker (or your choice)
+   - Directory? ./ (current directory)
+   - Want to override settings? No
+
+4. **Set Environment Variables**
+   ```bash
+   # Generate a strong session secret
+   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   
+   # Add environment variables
+   vercel env add SESSION_SECRET production
+   # Paste the generated secret when prompted
+   
+   vercel env add COOKIE_SECURE production
+   # Enter: true
+   
+   vercel env add NODE_ENV production
+   # Enter: production
+   ```
+
+5. **Deploy to Production**
+   ```bash
+   vercel --prod
+   ```
+
+6. **Custom Domain (Optional)**
+   ```bash
+   vercel domains add your-domain.com
+   ```
+
+**Notes:**
+- Vercel automatically provides HTTPS
+- Environment variables are set per environment (production, preview, development)
+- Vercel uses serverless functions - JSON file storage works but consider upgrading to a database for scale
+- Free tier includes: 100GB bandwidth, unlimited requests
+
+**Post-Deployment:**
+1. Visit your Vercel URL (shown after deployment)
+2. Login with default credentials
+3. Change admin and sam passwords immediately
+4. Test all functionality
+
+### Option 2: Heroku
 
 1. **Install Heroku CLI**
    ```bash
@@ -105,7 +170,7 @@ Before going live, verify:
    heroku open
    ```
 
-### Option 2: Railway
+### Option 3: Railway
 
 1. **Install Railway CLI**
    ```bash
@@ -130,7 +195,7 @@ Before going live, verify:
    railway up
    ```
 
-### Option 3: DigitalOcean App Platform
+### Option 4: DigitalOcean App Platform
 
 1. **Create a New App** in DigitalOcean dashboard
 2. **Connect your GitHub repository**
@@ -148,7 +213,7 @@ Before going live, verify:
 
 5. **Deploy** - DigitalOcean will auto-deploy
 
-### Option 4: VPS (Ubuntu/Debian)
+### Option 5: VPS (Ubuntu/Debian)
 
 1. **Setup Server**
    ```bash
