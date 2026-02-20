@@ -708,7 +708,8 @@ app.get('/api/audit-log', requireSuperAdmin, async (req, res) => {
       logs = logs.filter(log => 
         log.action !== 'MANUAL_HOURS' && 
         log.action !== 'DELETE_LOG' &&
-        log.action !== 'ADJUST_HOURS'
+        log.action !== 'ADJUST_HOURS' &&
+        !log.hidden  // Also filter out hidden logs
       );
     }
     
@@ -741,6 +742,35 @@ app.delete('/api/audit-log/:index', requireAuth, async (req, res) => {
     res.json({ message: 'Log entry deleted' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete log entry' });
+  }
+});
+
+// PUT /api/audit-log/:index/hide - Toggle hide/unhide audit log entry (sam only)
+app.put('/api/audit-log/:index/hide', requireAuth, async (req, res) => {
+  try {
+    // Only sam role can hide/unhide logs
+    if (req.session.role !== 'sam') {
+      return res.status(403).json({ error: 'Only sam can hide/unhide audit logs' });
+    }
+    
+    const index = parseInt(req.params.index);
+    const logData = await fs.readFile(AUDIT_LOG_FILE, 'utf8');
+    const logs = JSON.parse(logData);
+    
+    if (index < 0 || index >= logs.length) {
+      return res.status(400).json({ error: 'Invalid log index' });
+    }
+    
+    // Toggle the hidden status
+    logs[index].hidden = !logs[index].hidden;
+    await fs.writeFile(AUDIT_LOG_FILE, JSON.stringify(logs, null, 2));
+    
+    res.json({ 
+      message: logs[index].hidden ? 'Log entry hidden' : 'Log entry unhidden',
+      hidden: logs[index].hidden 
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to toggle log visibility' });
   }
 });
 

@@ -1104,3 +1104,22 @@ header.has-logout p {
 .badge-secondary {
     background: #6c757d;
 }
+
+/* Hidden audit log styling */
+.hidden-log {
+    opacity: 0.5;
+    background-color: #f8f9fa;
+}
+
+.hidden-log td {
+    color: #6c757d;
+}
+
+.btn-warning {
+    background: #ffc107;
+    color: #000;
+}
+
+.btn-warning:hover {
+    background: #e0a800;
+}

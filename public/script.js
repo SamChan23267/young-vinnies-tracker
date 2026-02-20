@@ -246,14 +246,22 @@ if (window.location.pathname.endsWith('audit-log.html')) {
                 const date = new Date(log.timestamp);
                 const formattedDate = date.toLocaleString();
                 const details = JSON.stringify(log.data, null, 2);
+                const isHidden = log.hidden === true;
+                const hiddenClass = isHidden ? ' hidden-log' : '';
+                const hiddenIndicator = isHidden ? ' 👁️‍🗨️ Hidden' : '';
                 
                 return `
-                    <tr>
+                    <tr class="audit-log-row${hiddenClass}" data-index="${index}">
                         <td>${formattedDate}</td>
                         <td><strong>${log.username || 'unknown'}</strong></td>
-                        <td><span class="action-badge">${log.action}</span></td>
+                        <td><span class="action-badge">${log.action}${hiddenIndicator}</span></td>
                         <td><pre style="margin: 0; font-size: 0.85em; max-width: 400px; overflow-x: auto;">${details}</pre></td>
-                        ${isSamUser ? `<td><button class="btn btn-delete" onclick="deleteAuditLogEntry(${index})" title="Delete this log entry">🗑️</button></td>` : ''}
+                        ${isSamUser ? `<td>
+                            <button class="btn ${isHidden ? 'btn-warning' : 'btn-secondary'}" onclick="toggleHideAuditLogEntry(${index})" title="${isHidden ? 'Unhide this log entry' : 'Hide this log entry'}">
+                                ${isHidden ? '👁️ Show' : '🔒 Hide'}
+                            </button>
+                            <button class="btn btn-delete" onclick="deleteAuditLogEntry(${index})" title="Delete this log entry">🗑️</button>
+                        </td>` : ''}
                     </tr>
                 `;
             }).join('');
@@ -1053,12 +1061,90 @@ async function deleteAuditLogEntry(index) {
         
         showMessage('Audit log entry deleted', 'success');
         
-        // Reload audit log if we're on that page
-        if (typeof loadAuditLog === 'function') {
-            loadAuditLog();
+        // Remove the row from DOM immediately instead of reloading
+        const row = document.querySelector(`tr.audit-log-row[data-index="${index}"]`);
+        if (row) {
+            row.remove();
+            
+            // Update remaining row indices
+            const allRows = document.querySelectorAll('tr.audit-log-row');
+            allRows.forEach((r, i) => {
+                if (parseInt(r.dataset.index) > index) {
+                    r.dataset.index = parseInt(r.dataset.index) - 1;
+                    // Update button onclick handlers
+                    const hideBtn = r.querySelector('.btn-warning, .btn-secondary');
+                    const deleteBtn = r.querySelector('.btn-delete');
+                    if (hideBtn) {
+                        hideBtn.setAttribute('onclick', `toggleHideAuditLogEntry(${parseInt(r.dataset.index)})`);
+                    }
+                    if (deleteBtn) {
+                        deleteBtn.setAttribute('onclick', `deleteAuditLogEntry(${parseInt(r.dataset.index)})`);
+                    }
+                }
+            });
+            
+            // Check if table is now empty
+            if (allRows.length === 1) {
+                const tbody = document.getElementById('audit-log-tbody');
+                const isSamUser = await checkIfSamUser();
+                tbody.innerHTML = `<tr><td colspan="${isSamUser ? '5' : '4'}" class="empty-state"><p>No audit log entries yet.</p></td></tr>`;
+            }
         }
     } catch (error) {
         console.error('Error deleting audit log entry:', error);
+        showMessage('Failed to delete audit log entry', 'error');
+    }
+}
+
+// Toggle hide/unhide audit log entry (sam only)
+async function toggleHideAuditLogEntry(index) {
+    try {
+        const response = await apiCall(`/api/audit-log/${index}/hide`, {
+            method: 'PUT'
+        });
+        
+        showMessage(response.message, 'success');
+        
+        // Update the row immediately
+        const row = document.querySelector(`tr.audit-log-row[data-index="${index}"]`);
+        if (row) {
+            const isHidden = response.hidden;
+            
+            // Update row class
+            if (isHidden) {
+                row.classList.add('hidden-log');
+            } else {
+                row.classList.remove('hidden-log');
+            }
+            
+            // Update action badge
+            const actionBadge = row.querySelector('.action-badge');
+            if (actionBadge) {
+                const actionText = actionBadge.textContent.replace(' 👁️‍🗨️ Hidden', '');
+                actionBadge.textContent = actionText + (isHidden ? ' 👁️‍🗨️ Hidden' : '');
+            }
+            
+            // Update hide/show button
+            const hideBtn = row.querySelector('.btn-warning, .btn-secondary');
+            if (hideBtn) {
+                hideBtn.className = `btn ${isHidden ? 'btn-warning' : 'btn-secondary'}`;
+                hideBtn.innerHTML = isHidden ? '👁️ Show' : '🔒 Hide';
+                hideBtn.title = isHidden ? 'Unhide this log entry' : 'Hide this log entry';
+            }
+        }
+    } catch (error) {
+        console.error('Error toggling log visibility:', error);
+        showMessage('Failed to toggle log visibility', 'error');
+    }
+}
+
+// Helper function to check if current user is sam
+async function checkIfSamUser() {
+    try {
+        const response = await apiCall('/api/check-auth');
+        return response.role === 'sam';
+    } catch (error) {
+        return false;
     }
 }
 
