@@ -406,6 +406,149 @@ if (window.location.pathname.endsWith('members.html')) {
     let allMembers = [];
     let allSessions = [];
     
+    // Calculate total hours for a member
+    function calculateMemberHours(memberCode) {
+        let hours = 0;
+        allSessions.forEach(session => {
+            const sessionHours = session.hours || 1;
+            if (session.attendees.includes(memberCode)) {
+                const individualHours = session.individualHours && session.individualHours[memberCode] 
+                    ? session.individualHours[memberCode] 
+                    : sessionHours;
+                hours += individualHours;
+            }
+        });
+        const member = allMembers.find(m => m.code === memberCode);
+        return hours + (member?.manualHours || 0);
+    }
+    
+    // Populate year level filters dynamically
+    function populateYearLevelFilters() {
+        const yearLevelsSet = new Set();
+        allMembers.forEach(member => {
+            if (member.yearLevel) {
+                yearLevelsSet.add(member.yearLevel);
+            }
+        });
+        
+        const yearLevels = Array.from(yearLevelsSet).sort((a, b) => {
+            const aNum = parseInt(a);
+            const bNum = parseInt(b);
+            if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+            return a.toString().localeCompare(b.toString());
+        });
+        
+        const container = document.getElementById('year-level-filters');
+        if (!container) return;
+        
+        if (yearLevels.length === 0) {
+            container.innerHTML = '<span style="color: #666; font-style: italic;">No year levels available</span>';
+            return;
+        }
+        
+        container.innerHTML = yearLevels.map(year => `
+            <label class="checkbox-label" style="display: inline-flex; align-items: center; gap: 5px; cursor: pointer;">
+                <input type="checkbox" class="year-level-checkbox" value="${year}" checked>
+                <span>Year ${year}</span>
+            </label>
+        `).join('');
+        
+        // Add event listeners to checkboxes
+        container.querySelectorAll('.year-level-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', filterAndSortMembers);
+        });
+    }
+    
+    // Filter and sort members based on all criteria
+    function filterAndSortMembers() {
+        let filteredMembers = [...allMembers];
+        
+        // Apply search filter
+        const searchTerm = document.getElementById('member-search')?.value.toLowerCase() || '';
+        if (searchTerm) {
+            filteredMembers = filteredMembers.filter(member =>
+                member.name.toLowerCase().includes(searchTerm) ||
+                member.code.toLowerCase().includes(searchTerm) ||
+                (member.yearLevel && member.yearLevel.toLowerCase().includes(searchTerm))
+            );
+        }
+        
+        // Apply year level filter
+        const selectedYears = Array.from(document.querySelectorAll('.year-level-checkbox:checked'))
+            .map(cb => cb.value);
+        if (selectedYears.length > 0) {
+            const allYearCheckboxes = document.querySelectorAll('.year-level-checkbox');
+            // Only filter if not all checkboxes are checked (meaning user has deselected some)
+            if (selectedYears.length < allYearCheckboxes.length) {
+                filteredMembers = filteredMembers.filter(member =>
+                    member.yearLevel && selectedYears.includes(member.yearLevel)
+                );
+            }
+        }
+        
+        // Apply hours range filter
+        const hoursMin = parseFloat(document.getElementById('hours-min')?.value);
+        const hoursMax = parseFloat(document.getElementById('hours-max')?.value);
+        if (!isNaN(hoursMin) || !isNaN(hoursMax)) {
+            filteredMembers = filteredMembers.filter(member => {
+                const totalHours = calculateMemberHours(member.code);
+                if (!isNaN(hoursMin) && totalHours < hoursMin) return false;
+                if (!isNaN(hoursMax) && totalHours > hoursMax) return false;
+                return true;
+            });
+        }
+        
+        // Apply sorting - cache hours calculation for performance
+        const sortValue = document.getElementById('member-sort')?.value || '';
+        if (sortValue) {
+            const hoursCache = new Map();
+            if (sortValue === 'hours-asc' || sortValue === 'hours-desc') {
+                filteredMembers.forEach(member => {
+                    hoursCache.set(member.code, calculateMemberHours(member.code));
+                });
+            }
+            
+            filteredMembers.sort((a, b) => {
+                switch(sortValue) {
+                    case 'year-asc': {
+                        const aYear = parseInt(a.yearLevel) || 999;
+                        const bYear = parseInt(b.yearLevel) || 999;
+                        return aYear - bYear;
+                    }
+                    case 'year-desc': {
+                        const aYearDesc = parseInt(a.yearLevel) || -1;
+                        const bYearDesc = parseInt(b.yearLevel) || -1;
+                        return bYearDesc - aYearDesc;
+                    }
+                    case 'hours-asc':
+                        return hoursCache.get(a.code) - hoursCache.get(b.code);
+                    case 'hours-desc':
+                        return hoursCache.get(b.code) - hoursCache.get(a.code);
+                    default:
+                        return 0;
+                }
+            });
+        }
+        
+        displayMembers(filteredMembers);
+    }
+    
+    // Clear all filters
+    function clearMemberFilters() {
+        const searchInput = document.getElementById('member-search');
+        const sortSelect = document.getElementById('member-sort');
+        const hoursMinInput = document.getElementById('hours-min');
+        const hoursMaxInput = document.getElementById('hours-max');
+        
+        if (searchInput) searchInput.value = '';
+        if (sortSelect) sortSelect.value = '';
+        if (hoursMinInput) hoursMinInput.value = '';
+        if (hoursMaxInput) hoursMaxInput.value = '';
+        
+        document.querySelectorAll('.year-level-checkbox').forEach(cb => cb.checked = true);
+        filterAndSortMembers();
+    }
+    
     // Load members
     async function loadMembersPage() {
         try {
@@ -414,7 +557,8 @@ if (window.location.pathname.endsWith('members.html')) {
                 fetch('/api/sessions').then(res => res.json())
             ]);
             
-            displayMembers(allMembers);
+            populateYearLevelFilters();
+            filterAndSortMembers();
         } catch (error) {
             console.error('Error loading members:', error);
         }
@@ -425,8 +569,22 @@ if (window.location.pathname.endsWith('members.html')) {
         const tbody = document.getElementById('members-tbody');
         document.getElementById('member-count').textContent = members.length;
         
+        // Update total count display
+        const totalCountSpan = document.getElementById('member-count-total');
+        if (totalCountSpan) {
+            if (members.length !== allMembers.length) {
+                totalCountSpan.textContent = ` of ${allMembers.length}`;
+            } else {
+                totalCountSpan.textContent = '';
+            }
+        }
+        
         if (members.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><p>No members yet. Add your first member above!</p></td></tr>';
+            if (allMembers.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><p>No members yet. Add your first member above!</p></td></tr>';
+            } else {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><p>No members match the current filters.</p></td></tr>';
+            }
             return;
         }
         
@@ -462,15 +620,13 @@ if (window.location.pathname.endsWith('members.html')) {
     }
     
     // Search functionality
-    document.getElementById('member-search')?.addEventListener('input', (e) => {
-        const searchTerm = e.target.value.toLowerCase();
-        const filteredMembers = allMembers.filter(member =>
-            member.name.toLowerCase().includes(searchTerm) ||
-            member.code.toLowerCase().includes(searchTerm) ||
-            (member.yearLevel && member.yearLevel.toLowerCase().includes(searchTerm))
-        );
-        displayMembers(filteredMembers);
-    });
+    document.getElementById('member-search')?.addEventListener('input', filterAndSortMembers);
+    
+    // Filter and sort event listeners
+    document.getElementById('member-sort')?.addEventListener('change', filterAndSortMembers);
+    document.getElementById('hours-min')?.addEventListener('input', filterAndSortMembers);
+    document.getElementById('hours-max')?.addEventListener('input', filterAndSortMembers);
+    document.getElementById('clear-filters-btn')?.addEventListener('click', clearMemberFilters);
     
     // Add member form handler
     document.getElementById('add-member-form')?.addEventListener('submit', async (e) => {
