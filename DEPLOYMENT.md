@@ -136,9 +136,13 @@ Before going live, verify:
 
 **Post-Deployment:**
 1. Visit your Vercel URL (shown after deployment)
-2. Login with default credentials
-3. Change admin and sam passwords immediately
-4. Test all functionality
+2. Login with default admin credentials (username: `admin`, password: `vinnies2024`)
+3. **Immediately change admin password** via Settings page
+4. Login as sam (username: `sam`, password: `sam2024secret`)  
+5. **Immediately change sam password** via Settings page
+6. Test all functionality
+
+⚠️ **Security Warning:** Default passwords must be changed immediately after first deployment. Do not use default credentials in production.
 
 ### Option 2: Heroku
 
