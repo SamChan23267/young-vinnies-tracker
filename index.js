@@ -83,7 +83,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // File paths
 const DATA_FILE = path.join(__dirname, 'data.json');
@@ -1042,11 +1042,16 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  if (!process.env.SESSION_SECRET && process.env.NODE_ENV === 'production') {
-    console.warn('⚠️  WARNING: SESSION_SECRET not set! Using default secret.');
-  }
-});
+// Start server only when run directly (not when imported by Vercel)
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Server is running on http://localhost:${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    if (!process.env.SESSION_SECRET && process.env.NODE_ENV === 'production') {
+      console.warn('⚠️  WARNING: SESSION_SECRET not set! Using default secret.');
+    }
+  });
+}
+
+// Export for Vercel serverless deployment
+module.exports = app;
