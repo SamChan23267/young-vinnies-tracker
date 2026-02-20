@@ -1195,8 +1195,8 @@ async function handleAdjustHours(event) {
         document.getElementById('adjust-hours-modal').style.display = 'none';
         
         // Reload members if we're on the members page
-        if (typeof loadMembers === 'function') {
-            loadMembers();
+        if (typeof loadMembersPage === 'function') {
+            loadMembersPage();
         }
     } catch (error) {
         console.error('Error adjusting hours:', error);
