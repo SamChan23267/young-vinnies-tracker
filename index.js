@@ -2,7 +2,7 @@
 require('dotenv').config();
 
 const express = require('express');
-const session = require('express-session');
+const cookieSession = require('cookie-session');
 const helmet = require('helmet');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
@@ -50,16 +50,14 @@ app.use('/api/', limiter);
 // Middleware
 app.use(express.json());
 
-// Session configuration
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'young-vinnies-secret-key-2024',
-  resave: false,
-  saveUninitialized: false,
-  cookie: { 
-    secure: process.env.COOKIE_SECURE === 'true' || process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    maxAge: parseInt(process.env.COOKIE_MAX_AGE) || 24 * 60 * 60 * 1000 // 24 hours
-  }
+// Session configuration (cookie-based for serverless compatibility)
+app.use(cookieSession({
+  name: 'session',
+  keys: [process.env.SESSION_SECRET || 'young-vinnies-secret-key-2024'],
+  maxAge: parseInt(process.env.COOKIE_MAX_AGE) || 24 * 60 * 60 * 1000, // 24 hours
+  secure: process.env.COOKIE_SECURE === 'true' || process.env.NODE_ENV === 'production',
+  httpOnly: true,
+  sameSite: 'lax'
 }));
 
 // Static files - but check auth for main pages
@@ -242,12 +240,8 @@ app.post('/api/login', async (req, res) => {
 
 // POST /api/logout - Logout user
 app.post('/api/logout', (req, res) => {
-  req.session.destroy((err) => {
-    if (err) {
-      return res.status(500).json({ error: 'Failed to logout' });
-    }
-    res.json({ success: true, message: 'Logout successful' });
-  });
+  req.session = null;
+  res.json({ success: true, message: 'Logout successful' });
 });
 
 // GET /api/check-auth - Check if user is authenticated
