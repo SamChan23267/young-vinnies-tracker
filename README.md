@@ -2,6 +2,13 @@
 
 A simple web application to track volunteer hours for a student group.
 
+## 🚀 Quick Deploy to Vercel
+
+Want to get started immediately? Deploy to Vercel in 5 minutes:
+
+**📖 [Quick Start Guide](QUICK_START_VERCEL.md)** - Deploy in 5 minutes
+**📚 [Full Vercel Deployment Guide](VERCEL_DEPLOYMENT_GUIDE.md)** - Complete step-by-step instructions
+
 ## Features
 
 - **User Authentication**: Secure login system to ensure only authorized leaders can access the application
