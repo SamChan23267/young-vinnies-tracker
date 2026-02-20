@@ -22,9 +22,11 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://vercel.live", "https://*.vercel.live"],
       scriptSrcAttr: ["'unsafe-inline'"], // Allow inline event handlers (onclick, etc.)
       imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "https://vercel.live", "https://*.vercel.live", "wss://*.vercel.live"],
+      frameSrc: ["'self'", "https://vercel.live", "https://*.vercel.live"],
     },
   },
 }));
@@ -83,10 +85,10 @@ app.use((req, res, next) => {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// File paths
-const DATA_FILE = path.join(__dirname, 'data.json');
-const AUDIT_LOG_FILE = path.join(__dirname, 'audit_log.json');
-const USERS_FILE = path.join(__dirname, 'users.json');
+// File paths - use /tmp on Vercel (serverless read-only filesystem) or project root locally
+const DATA_FILE = process.env.VERCEL ? '/tmp/data.json' : path.join(__dirname, 'data.json');
+const AUDIT_LOG_FILE = process.env.VERCEL ? '/tmp/audit_log.json' : path.join(__dirname, 'audit_log.json');
+const USERS_FILE = process.env.VERCEL ? '/tmp/users.json' : path.join(__dirname, 'users.json');
 
 // Helper function to check if role is sam (secret role)
 function isSamRole(role) {
@@ -104,6 +106,16 @@ async function readUsers() {
     const data = await fs.readFile(USERS_FILE, 'utf8');
     return JSON.parse(data);
   } catch (error) {
+    if (process.env.VERCEL) {
+      // On Vercel, /tmp is writable but starts empty - seed from bundled source file
+      try {
+        const src = await fs.readFile(path.join(__dirname, 'users.json'), 'utf8');
+        await fs.writeFile(USERS_FILE, src).catch(() => {});
+        return JSON.parse(src);
+      } catch (seedError) {
+        console.error('Error seeding users from source:', seedError);
+      }
+    }
     console.error('Error reading users:', error);
     return [];
   }
@@ -131,6 +143,16 @@ async function readData() {
     const data = await fs.readFile(DATA_FILE, 'utf8');
     return JSON.parse(data);
   } catch (error) {
+    if (process.env.VERCEL) {
+      // On Vercel, /tmp is writable but starts empty - seed from bundled source file
+      try {
+        const src = await fs.readFile(path.join(__dirname, 'data.json'), 'utf8');
+        await fs.writeFile(DATA_FILE, src).catch(() => {});
+        return JSON.parse(src);
+      } catch (seedError) {
+        console.error('Error seeding data from source:', seedError);
+      }
+    }
     console.error('Error reading data:', error);
     return { members: [], sessions: [] };
   }
@@ -141,6 +163,26 @@ async function writeData(data) {
   await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2));
 }
 
+// Helper function to read audit log
+async function readAuditLog() {
+  try {
+    const logData = await fs.readFile(AUDIT_LOG_FILE, 'utf8');
+    return JSON.parse(logData);
+  } catch (error) {
+    if (process.env.VERCEL) {
+      // On Vercel, /tmp is writable but starts empty - seed from bundled source file
+      try {
+        const src = await fs.readFile(path.join(__dirname, 'audit_log.json'), 'utf8');
+        await fs.writeFile(AUDIT_LOG_FILE, src).catch(() => {});
+        return JSON.parse(src);
+      } catch (seedError) {
+        console.error('Error seeding audit log from source:', seedError);
+      }
+    }
+    return [];
+  }
+}
+
 // Helper function to log audit entry
 async function logAudit(action, data, username, skipLog = false) {
   // If skipLog is true, don't log the action (sam's privilege)
@@ -149,8 +191,7 @@ async function logAudit(action, data, username, skipLog = false) {
   }
   
   try {
-    const logData = await fs.readFile(AUDIT_LOG_FILE, 'utf8');
-    const logs = JSON.parse(logData);
+    const logs = await readAuditLog();
     logs.push({
       timestamp: new Date().toISOString(),
       username: username || 'unknown',
@@ -694,8 +735,7 @@ app.get('/api/export/csv', requireAuth, async (req, res) => {
 // GET /api/audit-log - Get audit log (super admin only)
 app.get('/api/audit-log', requireSuperAdmin, async (req, res) => {
   try {
-    const logData = await fs.readFile(AUDIT_LOG_FILE, 'utf8');
-    let logs = JSON.parse(logData);
+    let logs = await readAuditLog();
     
     // Filter out sam-only actions for non-sam users
     if (req.session.role !== 'sam') {
@@ -722,8 +762,7 @@ app.delete('/api/audit-log/:index', requireAuth, async (req, res) => {
     }
     
     const index = parseInt(req.params.index);
-    const logData = await fs.readFile(AUDIT_LOG_FILE, 'utf8');
-    const logs = JSON.parse(logData);
+    const logs = await readAuditLog();
     
     if (index < 0 || index >= logs.length) {
       return res.status(400).json({ error: 'Invalid log index' });
@@ -748,8 +787,7 @@ app.put('/api/audit-log/:index/hide', requireAuth, async (req, res) => {
     }
     
     const index = parseInt(req.params.index);
-    const logData = await fs.readFile(AUDIT_LOG_FILE, 'utf8');
-    const logs = JSON.parse(logData);
+    const logs = await readAuditLog();
     
     if (index < 0 || index >= logs.length) {
       return res.status(400).json({ error: 'Invalid log index' });
@@ -968,8 +1006,7 @@ app.get('/api/system-stats', requireSuperAdmin, async (req, res) => {
   try {
     const data = await readData();
     const users = await readUsers();
-    const logData = await fs.readFile(AUDIT_LOG_FILE, 'utf8');
-    const logs = JSON.parse(logData);
+    const logs = await readAuditLog();
     
     // Calculate statistics
     const totalMembers = data.members.length;
