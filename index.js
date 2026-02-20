@@ -22,9 +22,11 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://vercel.live"],
+      scriptSrcElem: ["'self'", "'unsafe-inline'", "https://vercel.live"],
       scriptSrcAttr: ["'unsafe-inline'"], // Allow inline event handlers (onclick, etc.)
       imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "https://vercel.live", "wss://ws-us3.pusher.com", "wss://vercel.live"],
     },
   },
 }));
@@ -88,6 +90,14 @@ const DATA_FILE = path.join(__dirname, 'data.json');
 const AUDIT_LOG_FILE = path.join(__dirname, 'audit_log.json');
 const USERS_FILE = path.join(__dirname, 'users.json');
 
+// Writable file paths: Vercel serverless has a read-only project directory;
+// /tmp is writable (though ephemeral). In production writes go to /tmp and
+// reads try /tmp first, falling back to the bundled seed files.
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const WRITE_DATA_FILE = IS_PRODUCTION ? '/tmp/data.json' : DATA_FILE;
+const WRITE_AUDIT_LOG_FILE = IS_PRODUCTION ? '/tmp/audit_log.json' : AUDIT_LOG_FILE;
+const WRITE_USERS_FILE = IS_PRODUCTION ? '/tmp/users.json' : USERS_FILE;
+
 // Helper function to check if role is sam (secret role)
 function isSamRole(role) {
   return role === 'sam';
@@ -101,6 +111,14 @@ function getDisplayRole(role) {
 // Helper function to read users
 async function readUsers() {
   try {
+    if (IS_PRODUCTION) {
+      try {
+        const data = await fs.readFile(WRITE_USERS_FILE, 'utf8');
+        return JSON.parse(data);
+      } catch {
+        // Fall back to bundled seed file on cold start
+      }
+    }
     const data = await fs.readFile(USERS_FILE, 'utf8');
     return JSON.parse(data);
   } catch (error) {
@@ -128,6 +146,14 @@ function requireSuperAdmin(req, res, next) {
 // Helper function to read data
 async function readData() {
   try {
+    if (IS_PRODUCTION) {
+      try {
+        const data = await fs.readFile(WRITE_DATA_FILE, 'utf8');
+        return JSON.parse(data);
+      } catch {
+        // Fall back to bundled seed file on cold start
+      }
+    }
     const data = await fs.readFile(DATA_FILE, 'utf8');
     return JSON.parse(data);
   } catch (error) {
@@ -138,7 +164,26 @@ async function readData() {
 
 // Helper function to write data
 async function writeData(data) {
-  await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2));
+  await fs.writeFile(WRITE_DATA_FILE, JSON.stringify(data, null, 2));
+}
+
+// Helper function to read audit log
+async function readAuditLog() {
+  try {
+    if (IS_PRODUCTION) {
+      try {
+        const data = await fs.readFile(WRITE_AUDIT_LOG_FILE, 'utf8');
+        return JSON.parse(data);
+      } catch {
+        // Fall back to bundled seed file on cold start
+      }
+    }
+    const data = await fs.readFile(AUDIT_LOG_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('Error reading audit log:', error);
+    return [];
+  }
 }
 
 // Helper function to log audit entry
@@ -149,15 +194,14 @@ async function logAudit(action, data, username, skipLog = false) {
   }
   
   try {
-    const logData = await fs.readFile(AUDIT_LOG_FILE, 'utf8');
-    const logs = JSON.parse(logData);
+    const logs = await readAuditLog();
     logs.push({
       timestamp: new Date().toISOString(),
       username: username || 'unknown',
       action,
       data
     });
-    await fs.writeFile(AUDIT_LOG_FILE, JSON.stringify(logs, null, 2));
+    await fs.writeFile(WRITE_AUDIT_LOG_FILE, JSON.stringify(logs, null, 2));
   } catch (error) {
     console.error('Error logging audit:', error);
   }
@@ -694,8 +738,7 @@ app.get('/api/export/csv', requireAuth, async (req, res) => {
 // GET /api/audit-log - Get audit log (super admin only)
 app.get('/api/audit-log', requireSuperAdmin, async (req, res) => {
   try {
-    const logData = await fs.readFile(AUDIT_LOG_FILE, 'utf8');
-    let logs = JSON.parse(logData);
+    let logs = await readAuditLog();
     
     // Filter out sam-only actions for non-sam users
     if (req.session.role !== 'sam') {
@@ -722,8 +765,7 @@ app.delete('/api/audit-log/:index', requireAuth, async (req, res) => {
     }
     
     const index = parseInt(req.params.index);
-    const logData = await fs.readFile(AUDIT_LOG_FILE, 'utf8');
-    const logs = JSON.parse(logData);
+    const logs = await readAuditLog();
     
     if (index < 0 || index >= logs.length) {
       return res.status(400).json({ error: 'Invalid log index' });
@@ -731,7 +773,7 @@ app.delete('/api/audit-log/:index', requireAuth, async (req, res) => {
     
     // Remove the log entry
     logs.splice(index, 1);
-    await fs.writeFile(AUDIT_LOG_FILE, JSON.stringify(logs, null, 2));
+    await fs.writeFile(WRITE_AUDIT_LOG_FILE, JSON.stringify(logs, null, 2));
     
     res.json({ message: 'Log entry deleted' });
   } catch (error) {
@@ -748,8 +790,7 @@ app.put('/api/audit-log/:index/hide', requireAuth, async (req, res) => {
     }
     
     const index = parseInt(req.params.index);
-    const logData = await fs.readFile(AUDIT_LOG_FILE, 'utf8');
-    const logs = JSON.parse(logData);
+    const logs = await readAuditLog();
     
     if (index < 0 || index >= logs.length) {
       return res.status(400).json({ error: 'Invalid log index' });
@@ -757,7 +798,7 @@ app.put('/api/audit-log/:index/hide', requireAuth, async (req, res) => {
     
     // Toggle the hidden status
     logs[index].hidden = !logs[index].hidden;
-    await fs.writeFile(AUDIT_LOG_FILE, JSON.stringify(logs, null, 2));
+    await fs.writeFile(WRITE_AUDIT_LOG_FILE, JSON.stringify(logs, null, 2));
     
     res.json({ 
       message: logs[index].hidden ? 'Log entry hidden' : 'Log entry unhidden',
@@ -795,7 +836,7 @@ app.put('/api/change-password', requireAuth, async (req, res) => {
     
     // Update password
     users[userIndex].password = newPassword;
-    await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
+    await fs.writeFile(WRITE_USERS_FILE, JSON.stringify(users, null, 2));
     
     await logAudit('CHANGE_PASSWORD', { username: req.session.username }, req.session.username);
     
@@ -853,7 +894,7 @@ app.post('/api/users', requireSuperAdmin, async (req, res) => {
     // Add new user
     const newUser = { username, password, role, displayName };
     users.push(newUser);
-    await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
+    await fs.writeFile(WRITE_USERS_FILE, JSON.stringify(users, null, 2));
     
     await logAudit('ADD_USER', { username, role, displayName }, req.session.username);
     
@@ -909,7 +950,7 @@ app.put('/api/users/:username', requireSuperAdmin, async (req, res) => {
     if (role) users[userIndex].role = role;
     if (displayName) users[userIndex].displayName = displayName;
     
-    await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
+    await fs.writeFile(WRITE_USERS_FILE, JSON.stringify(users, null, 2));
     
     await logAudit('UPDATE_USER', { username, updates: { password: password ? '***' : undefined, role, displayName } }, req.session.username);
     
@@ -953,7 +994,7 @@ app.delete('/api/users/:username', requireSuperAdmin, async (req, res) => {
     
     // Remove user
     users.splice(userIndex, 1);
-    await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
+    await fs.writeFile(WRITE_USERS_FILE, JSON.stringify(users, null, 2));
     
     await logAudit('DELETE_USER', { username, role: deletedRole }, req.session.username);
     
@@ -968,8 +1009,7 @@ app.get('/api/system-stats', requireSuperAdmin, async (req, res) => {
   try {
     const data = await readData();
     const users = await readUsers();
-    const logData = await fs.readFile(AUDIT_LOG_FILE, 'utf8');
-    const logs = JSON.parse(logData);
+    const logs = await readAuditLog();
     
     // Calculate statistics
     const totalMembers = data.members.length;
