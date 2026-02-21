@@ -85,6 +85,37 @@ If you would rather **not use Vercel at all**, Railway is the simplest
 alternative: import your GitHub repo, and it runs `npm start` as a normal
 server with a writable filesystem — no KV needed, no code changes needed.
 
+### What about "deploying on GitHub" / GitHub Pages?
+
+**GitHub is not an app hosting platform — it is a code repository.**
+GitHub stores your source code and lets you manage changes, but it does not
+run a Node.js server for you.
+
+- **GitHub Pages** hosts *static* websites (plain HTML/CSS/JavaScript files
+  that run entirely in the browser). This app has a Node.js backend with an
+  Express server that reads and writes JSON files, handles authentication,
+  and serves a REST API. None of that can run on GitHub Pages.
+
+- **GitHub Actions** is a CI/CD pipeline tool. It can *build and deploy*
+  your code to another platform (e.g. push to Railway, trigger a Vercel
+  redeploy) but is not itself a server you can visit in a browser.
+
+- **GitHub Codespaces** is a cloud development environment meant for coding,
+  not for running a public production app.
+
+In short: **deploying "on GitHub" does not solve the problem** — GitHub
+cannot run this app at all. What GitHub *does* provide is the source code
+repository that platforms like Vercel and Railway pull from.
+
+**Recommendation:** Stick with one of the two free options:
+
+1. **Vercel + KV** — already set up in this repo; free; add the KV database
+   in the Vercel dashboard and you are done.
+2. **Railway** — free trial, no code changes needed, persistent filesystem
+   so no KV required. Go to https://railway.app, click "Deploy from GitHub
+   repo", select this repository, and Railway will run `npm start`
+   automatically.
+
 ---
 
 ## 📋 What You'll Need
