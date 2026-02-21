@@ -154,6 +154,7 @@
         </div>
     </div>
 
+    <div id="message-container"></div>
     <script src="script.js"></script>
     <script>
         // Check if user is super admin or sam
@@ -161,8 +162,8 @@
             .then(response => response.json())
             .then(data => {
                 if (data.role !== 'super_admin' && data.role !== 'sam') {
-                    alert('Access denied. Super admin access required.');
-                    window.location.href = 'index.html';
+                    showMessage('Access denied. Super admin access required.', 'error');
+                    setTimeout(() => { window.location.href = 'index.html'; }, 2000);
                 }
             })
             .catch(error => {
@@ -193,15 +194,15 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                    alert('User added successfully!');
+                    showMessage('User added successfully!', 'success');
                     document.getElementById('add-user-form').reset();
                     loadUsers();
                     loadSystemStats();
                 } else {
-                    alert('Error: ' + data.error);
+                    showMessage('Error: ' + data.error, 'error');
                 }
             } catch (error) {
-                alert('Failed to add user');
+                showMessage('Failed to add user', 'error');
             }
         });
 
@@ -302,15 +303,15 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                    alert('User updated successfully!');
+                    showMessage('User updated successfully!', 'success');
                     closeEditUserModal();
                     loadUsers();
                     loadSystemStats();
                 } else {
-                    alert('Error: ' + data.error);
+                    showMessage('Error: ' + data.error, 'error');
                 }
             } catch (error) {
-                alert('Failed to update user');
+                showMessage('Failed to update user', 'error');
             }
         });
 
@@ -328,14 +329,22 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                    alert('User deleted successfully!');
-                    loadUsers();
+                    showMessage('User deleted successfully!', 'success');
+                    // Immediately remove from DOM to prevent stale-data re-render
+                    const tbody = document.getElementById('users-list');
+                    for (const row of tbody.querySelectorAll('tr')) {
+                        if (row.cells[0] && row.cells[0].textContent.trim() === username) {
+                            row.remove();
+                            break;
+                        }
+                    }
+                    document.getElementById('user-count').textContent = tbody.querySelectorAll('tr').length;
                     loadSystemStats();
                 } else {
-                    alert('Error: ' + data.error);
+                    showMessage('Error: ' + data.error, 'error');
                 }
             } catch (error) {
-                alert('Failed to delete user');
+                showMessage('Failed to delete user', 'error');
             }
         }
 
