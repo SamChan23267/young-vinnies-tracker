@@ -62,7 +62,7 @@ app.use(express.json());
 // Session configuration (cookie-based for serverless compatibility)
 app.use(cookieSession({
   name: 'session',
-  keys: [process.env.SESSION_SECRET || 'young-vinnies-secret-key-2024'],
+  keys: [process.env.SESSION_SECRET || 'young-vinnies-secret-key-2026'],
   maxAge: parseInt(process.env.COOKIE_MAX_AGE, 10) || 24 * 60 * 60 * 1000, // 24 hours
   secure: process.env.COOKIE_SECURE === 'true' || process.env.NODE_ENV === 'production',
   httpOnly: true,

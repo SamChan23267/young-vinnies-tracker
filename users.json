@@ -1,13 +1,13 @@
 [
   {
     "username": "admin",
-    "password": "vinnies2024",
+    "password": "vinnies2026",
     "role": "super_admin",
     "displayName": "Super Administrator"
   },
   {
     "username": "sam",
-    "password": "sam2024secret",
+    "password": "sam2026secret",
     "role": "sam",
     "displayName": "Sam"
   }

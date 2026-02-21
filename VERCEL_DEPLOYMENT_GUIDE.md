@@ -226,13 +226,13 @@ Your data will now persist correctly across all requests.
 2. You'll see the login page
 3. Login with default credentials:
    - Username: `admin`
-   - Password: `vinnies2024`
+   - Password: `vinnies2026`
 4. Navigate to Settings page (⚙️ in navigation)
 5. Change the password to something secure
 6. Logout
 7. Login again as sam:
    - Username: `sam`
-   - Password: `sam2024secret`
+   - Password: `sam2026secret`
 8. Change sam's password in Settings
 9. Done! Your app is now secure.
 
@@ -390,11 +390,11 @@ Vercel KV (powered by Upstash **Redis**) fixes this.
 3. Login with default admin credentials:
    ```
    Username: admin
-   Password: vinnies2024
+   Password: vinnies2026
    ```
 4. Navigate to Settings (⚙️ icon in navigation)
 5. Under "Change Password", enter:
-   - Current Password: `vinnies2024`
+   - Current Password: `vinnies2026`
    - New Password: (choose a strong password)
    - Confirm Password: (same as new password)
 6. Click "Change Password"
@@ -402,7 +402,7 @@ Vercel KV (powered by Upstash **Redis**) fixes this.
 8. Login as sam:
    ```
    Username: sam
-   Password: sam2024secret
+   Password: sam2026secret
    ```
 9. Change sam's password in Settings
 10. Logout
@@ -501,7 +501,7 @@ You should see:
 ```json
 {
   "status": "healthy",
-  "timestamp": "2024-03-20T10:30:00.000Z",
+  "timestamp": "2026-03-20T10:30:00.000Z",
   "uptime": 123.45,
   "environment": "production"
 }
@@ -763,8 +763,8 @@ Share this URL with your team leaders and start tracking volunteer hours!
 ## 📌 Quick Reference
 
 ### Default Credentials (Change Immediately!)
-- **Admin:** username: `admin`, password: `vinnies2024`
-- **Sam:** username: `sam`, password: `sam2024secret`
+- **Admin:** username: `admin`, password: `vinnies2026`
+- **Sam:** username: `sam`, password: `sam2026secret`
 
 ### Important Commands
 ```bash

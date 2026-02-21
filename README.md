@@ -105,7 +105,7 @@ Interactive restore process - select a backup to restore.
 
 | Username | Password | Role | Access Level |
 |----------|----------|------|--------------|
-| admin | vinnies2024 | Super Admin | Full access + audit log viewer |
+| admin | vinnies2026 | Super Admin | Full access + audit log viewer |
 | leader1 | leader123 | Admin | Full access to members and sessions |
 | leader2 | leader456 | Admin | Full access to members and sessions |
 
@@ -184,7 +184,7 @@ The application is organized into multiple pages accessible via the navigation m
 5. The CSV file will be downloaded automatically
 
 ### Viewing Audit Log (Super Admin Only)
-1. Login as a super admin (e.g., admin/vinnies2024)
+1. Login as a super admin (e.g., admin/vinnies2026)
 2. The "🔐 Audit Log" link will appear in the navigation menu
 3. Click "Audit Log" to view all system activities
 4. Review entries with timestamps and usernames

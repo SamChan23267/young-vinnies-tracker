@@ -22,10 +22,10 @@ Click this button to deploy directly to Vercel:
 ### Step 3: Secure Your App
 
 1. Visit your new URL (shown after deployment)
-2. Login as `admin` / `vinnies2024`
+2. Login as `admin` / `vinnies2026`
 3. Go to Settings → Change Password
 4. Logout
-5. Login as `sam` / `sam2024secret`
+5. Login as `sam` / `sam2026secret`
 6. Go to Settings → Change Password
 
 ✅ **Done! Your app is live and secure!**
@@ -60,8 +60,8 @@ vercel --prod
 ### Then Secure Your App
 
 1. Visit the production URL shown
-2. Change admin password (login: admin/vinnies2024)
-3. Change sam password (login: sam/sam2024secret)
+2. Change admin password (login: admin/vinnies2026)
+3. Change sam password (login: sam/sam2026secret)
 
 ✅ **Done!**
 
@@ -91,8 +91,8 @@ vercel --prod
 
 **⚠️ IMPORTANT: Change these immediately after first login!**
 
-- Admin: `admin` / `vinnies2024`
-- Sam: `sam` / `sam2024secret`
+- Admin: `admin` / `vinnies2026`
+- Sam: `sam` / `sam2026secret`
 
 ---
 

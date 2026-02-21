@@ -136,9 +136,9 @@ Before going live, verify:
 
 **Post-Deployment:**
 1. Visit your Vercel URL (shown after deployment)
-2. Login with default admin credentials (username: `admin`, password: `vinnies2024`)
+2. Login with default admin credentials (username: `admin`, password: `vinnies2026`)
 3. **Immediately change admin password** via Settings page
-4. Login as sam (username: `sam`, password: `sam2024secret`)  
+4. Login as sam (username: `sam`, password: `sam2026secret`)  
 5. **Immediately change sam password** via Settings page
 6. Test all functionality
 
@@ -361,7 +361,7 @@ Response:
 ```json
 {
   "status": "healthy",
-  "timestamp": "2024-03-20T10:30:00.000Z",
+  "timestamp": "2026-03-20T10:30:00.000Z",
   "uptime": 3600.5
 }
 ```
