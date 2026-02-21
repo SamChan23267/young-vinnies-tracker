@@ -97,12 +97,14 @@ const AUDIT_LOG_FILE = path.join(__dirname, 'audit_log.json');
 const USERS_FILE = path.join(__dirname, 'users.json');
 
 // Writable file paths: Vercel serverless has a read-only project directory;
-// /tmp is writable (though ephemeral). In production writes go to /tmp and
-// reads try /tmp first, falling back to the bundled seed files.
-const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-const WRITE_DATA_FILE = IS_PRODUCTION ? '/tmp/data.json' : DATA_FILE;
-const WRITE_AUDIT_LOG_FILE = IS_PRODUCTION ? '/tmp/audit_log.json' : AUDIT_LOG_FILE;
-const WRITE_USERS_FILE = IS_PRODUCTION ? '/tmp/users.json' : USERS_FILE;
+// /tmp is writable (though ephemeral). On Vercel writes go to /tmp and reads
+// try /tmp first, falling back to the bundled seed files.
+// For non-Vercel deployments (including local production), write directly to
+// the project files so data persists across server restarts.
+const IS_VERCEL = !!process.env.VERCEL;
+const WRITE_DATA_FILE = IS_VERCEL ? '/tmp/data.json' : DATA_FILE;
+const WRITE_AUDIT_LOG_FILE = IS_VERCEL ? '/tmp/audit_log.json' : AUDIT_LOG_FILE;
+const WRITE_USERS_FILE = IS_VERCEL ? '/tmp/users.json' : USERS_FILE;
 
 // Module-level in-memory cache: persists for the lifetime of a single serverless
 // container so that all reads within the same invocation sequence see a
@@ -125,7 +127,7 @@ function getDisplayRole(role) {
 async function readUsers() {
   if (_usersCache !== null) return _usersCache;
   try {
-    if (IS_PRODUCTION) {
+    if (IS_VERCEL) {
       try {
         const data = await fs.readFile(WRITE_USERS_FILE, 'utf8');
         _usersCache = JSON.parse(data);
@@ -164,7 +166,7 @@ function requireSuperAdmin(req, res, next) {
 async function readData() {
   if (_dataCache !== null) return _dataCache;
   try {
-    if (IS_PRODUCTION) {
+    if (IS_VERCEL) {
       try {
         const data = await fs.readFile(WRITE_DATA_FILE, 'utf8');
         _dataCache = JSON.parse(data);
@@ -193,7 +195,7 @@ async function writeData(data) {
 async function readAuditLog() {
   if (_auditLogCache !== null) return _auditLogCache;
   try {
-    if (IS_PRODUCTION) {
+    if (IS_VERCEL) {
       try {
         const data = await fs.readFile(WRITE_AUDIT_LOG_FILE, 'utf8');
         _auditLogCache = JSON.parse(data);
@@ -764,19 +766,24 @@ app.get('/api/export/csv', requireAuth, async (req, res) => {
 // GET /api/audit-log - Get audit log (super admin only)
 app.get('/api/audit-log', requireSuperAdmin, async (req, res) => {
   try {
-    let logs = await readAuditLog();
+    const allLogs = await readAuditLog();
     
     // Filter out sam-only actions for non-sam users
     if (req.session.role !== 'sam') {
-      logs = logs.filter(log => 
+      const filtered = allLogs.filter(log => 
         log.action !== 'MANUAL_HOURS' && 
         log.action !== 'DELETE_LOG' &&
         log.action !== 'ADJUST_HOURS' &&
         !log.hidden  // Also filter out hidden logs
       );
+      return res.json(filtered);
     }
-    
-    res.json(logs);
+
+    // For sam: include the original array index so the client can address
+    // specific entries when hiding/unhiding (the client sorts by timestamp,
+    // so visual position != storage position).
+    const logsWithIdx = allLogs.map((log, idx) => ({ ...log, _idx: idx }));
+    res.json(logsWithIdx);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch audit log' });
   }
