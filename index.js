@@ -49,6 +49,12 @@ const limiter = rateLimit({
 // Apply rate limiting to API routes
 app.use('/api/', limiter);
 
+// Prevent caching of API responses (critical for Vercel serverless correctness)
+app.use('/api/', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
+
 // Middleware
 app.use(express.json());
 
@@ -98,6 +104,13 @@ const WRITE_DATA_FILE = IS_PRODUCTION ? '/tmp/data.json' : DATA_FILE;
 const WRITE_AUDIT_LOG_FILE = IS_PRODUCTION ? '/tmp/audit_log.json' : AUDIT_LOG_FILE;
 const WRITE_USERS_FILE = IS_PRODUCTION ? '/tmp/users.json' : USERS_FILE;
 
+// Module-level in-memory cache: persists for the lifetime of a single serverless
+// container so that all reads within the same invocation sequence see a
+// consistent view after any write.
+let _usersCache = null;
+let _dataCache = null;
+let _auditLogCache = null;
+
 // Helper function to check if role is sam (secret role)
 function isSamRole(role) {
   return role === 'sam';
@@ -110,20 +123,24 @@ function getDisplayRole(role) {
 
 // Helper function to read users
 async function readUsers() {
+  if (_usersCache !== null) return _usersCache;
   try {
     if (IS_PRODUCTION) {
       try {
         const data = await fs.readFile(WRITE_USERS_FILE, 'utf8');
-        return JSON.parse(data);
+        _usersCache = JSON.parse(data);
+        return _usersCache;
       } catch {
         // Fall back to bundled seed file on cold start
       }
     }
     const data = await fs.readFile(USERS_FILE, 'utf8');
-    return JSON.parse(data);
+    _usersCache = JSON.parse(data);
+    return _usersCache;
   } catch (error) {
     console.error('Error reading users:', error);
-    return [];
+    _usersCache = [];
+    return _usersCache;
   }
 }
 
@@ -145,44 +162,53 @@ function requireSuperAdmin(req, res, next) {
 
 // Helper function to read data
 async function readData() {
+  if (_dataCache !== null) return _dataCache;
   try {
     if (IS_PRODUCTION) {
       try {
         const data = await fs.readFile(WRITE_DATA_FILE, 'utf8');
-        return JSON.parse(data);
+        _dataCache = JSON.parse(data);
+        return _dataCache;
       } catch {
         // Fall back to bundled seed file on cold start
       }
     }
     const data = await fs.readFile(DATA_FILE, 'utf8');
-    return JSON.parse(data);
+    _dataCache = JSON.parse(data);
+    return _dataCache;
   } catch (error) {
     console.error('Error reading data:', error);
-    return { members: [], sessions: [] };
+    _dataCache = { members: [], sessions: [] };
+    return _dataCache;
   }
 }
 
 // Helper function to write data
 async function writeData(data) {
+  _dataCache = data;
   await fs.writeFile(WRITE_DATA_FILE, JSON.stringify(data, null, 2));
 }
 
 // Helper function to read audit log
 async function readAuditLog() {
+  if (_auditLogCache !== null) return _auditLogCache;
   try {
     if (IS_PRODUCTION) {
       try {
         const data = await fs.readFile(WRITE_AUDIT_LOG_FILE, 'utf8');
-        return JSON.parse(data);
+        _auditLogCache = JSON.parse(data);
+        return _auditLogCache;
       } catch {
         // Fall back to bundled seed file on cold start
       }
     }
     const data = await fs.readFile(AUDIT_LOG_FILE, 'utf8');
-    return JSON.parse(data);
+    _auditLogCache = JSON.parse(data);
+    return _auditLogCache;
   } catch (error) {
     console.error('Error reading audit log:', error);
-    return [];
+    _auditLogCache = [];
+    return _auditLogCache;
   }
 }
 

@@ -330,7 +330,15 @@
                 
                 if (response.ok) {
                     showMessage('User deleted successfully!', 'success');
-                    loadUsers();
+                    // Immediately remove from DOM to prevent stale-data re-render
+                    const tbody = document.getElementById('users-list');
+                    for (const row of tbody.querySelectorAll('tr')) {
+                        if (row.cells[0] && row.cells[0].textContent.trim() === username) {
+                            row.remove();
+                            break;
+                        }
+                    }
+                    document.getElementById('user-count').textContent = tbody.querySelectorAll('tr').length;
                     loadSystemStats();
                 } else {
                     showMessage('Error: ' + data.error, 'error');
