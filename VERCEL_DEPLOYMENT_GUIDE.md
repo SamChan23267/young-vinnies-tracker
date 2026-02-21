@@ -80,6 +80,28 @@ This is the simplest method and requires no command-line knowledge.
 2. Wait for the build to complete (1-3 minutes)
 3. Once complete, you'll see "Congratulations!" with your deployment URL
 
+### Step 5b: Add Vercel KV Storage (Required to prevent data loss)
+
+Vercel runs multiple simultaneous function instances. Without a shared
+database each instance keeps its own private copy of your data, causing
+members, sessions and audit-log entries to randomly disappear on refresh
+("parallel universes"). Vercel KV (powered by Upstash **Redis**) fixes
+this by giving all instances a single shared store.
+
+1. In your Vercel project dashboard click **Storage** in the left sidebar.
+2. Click **Create Database**.
+3. Select **KV** from the list of database types.
+4. On the Upstash product-selection screen choose **Redis**
+   *(not Vector, Queue, or Search)*.
+5. Give it a name (e.g. `young-vinnies-kv`) and click **Create & Continue**.
+6. On the "Connect to Project" screen select your project and click
+   **Connect**.  Vercel automatically adds `KV_REST_API_URL` and
+   `KV_REST_API_TOKEN` to your project's environment variables.
+7. Go back to your project's **Deployments** tab and click **Redeploy**
+   on the latest deployment so the new env vars take effect.
+
+Your data will now persist correctly across all requests.
+
 ### Step 6: Post-Deployment Security
 
 **⚠️ CRITICAL: Change Default Passwords Immediately!**
@@ -222,6 +244,26 @@ Vercel will:
 - Show you the production URL
 
 🎉 **Your app is now live!**
+
+### Step 6b: Add Vercel KV Storage (Required to prevent data loss)
+
+Vercel runs multiple simultaneous function instances. Without a shared
+database each instance keeps its own private copy of your data, causing
+members, sessions and audit-log entries to randomly disappear on refresh.
+Vercel KV (powered by Upstash **Redis**) fixes this.
+
+1. Open your Vercel project in the browser dashboard.
+2. Click **Storage** in the left sidebar → **Create Database** → **KV**.
+3. On the Upstash product-selection screen choose **Redis**
+   *(not Vector, Queue, or Search)*.
+4. Name it (e.g. `young-vinnies-kv`) and follow the wizard.
+5. On the "Connect to Project" screen select your project and click
+   **Connect**.  Vercel automatically adds `KV_REST_API_URL` and
+   `KV_REST_API_TOKEN` to your project's env vars.
+6. Redeploy to pick up the new variables:
+   ```bash
+   vercel --prod
+   ```
 
 ### Step 7: Post-Deployment Security
 
