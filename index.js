@@ -8,6 +8,7 @@ const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const morgan = require('morgan');
 const fs = require('fs').promises;
+const https = require('https');
 const path = require('path');
 
 const app = express();
@@ -106,9 +107,67 @@ const WRITE_DATA_FILE = IS_VERCEL ? '/tmp/data.json' : DATA_FILE;
 const WRITE_AUDIT_LOG_FILE = IS_VERCEL ? '/tmp/audit_log.json' : AUDIT_LOG_FILE;
 const WRITE_USERS_FILE = IS_VERCEL ? '/tmp/users.json' : USERS_FILE;
 
+// -----------------------------------------------------------------------
+// Vercel KV (Upstash Redis) storage helpers
+// When KV_REST_API_URL + KV_REST_API_TOKEN are set every read/write is
+// routed through a single shared KV store that is visible to ALL Vercel
+// function instances, eliminating the "parallel universe" problem caused
+// by each instance having its own private /tmp and in-memory cache.
+// -----------------------------------------------------------------------
+const KV_REST_API_URL = process.env.KV_REST_API_URL;
+const KV_REST_API_TOKEN = process.env.KV_REST_API_TOKEN;
+const USE_KV = !!(KV_REST_API_URL && KV_REST_API_TOKEN);
+
+// Low-level POST to the Upstash Redis REST command endpoint
+function _kvRequest(command) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(KV_REST_API_URL);
+    const body = Buffer.from(JSON.stringify(command));
+    const req = https.request({
+      hostname: u.hostname,
+      port: u.port || 443,
+      path: '/',
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${KV_REST_API_TOKEN}`,
+        'Content-Type': 'application/json',
+        'Content-Length': body.length,
+      },
+    }, (res) => {
+      let data = '';
+      res.on('data', c => (data += c));
+      res.on('end', () => {
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          return reject(new Error(`KV request failed with HTTP ${res.statusCode}`));
+        }
+        try { resolve(JSON.parse(data)); }
+        catch (e) { reject(new Error(`KV parse error (HTTP ${res.statusCode})`)); }
+      });
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
+async function kvGet(key) {
+  const { result } = await _kvRequest(['GET', key]);
+  if (result === null || result === undefined) return null;
+  try {
+    return JSON.parse(result);
+  } catch (e) {
+    console.error(`KV value for key "${key}" is not valid JSON; returning null`);
+    return null;
+  }
+}
+
+async function kvSet(key, value) {
+  await _kvRequest(['SET', key, JSON.stringify(value)]);
+}
+
 // Module-level in-memory cache: persists for the lifetime of a single serverless
 // container so that all reads within the same invocation sequence see a
-// consistent view after any write.
+// consistent view after any write. Not used when KV is enabled.
 let _usersCache = null;
 let _dataCache = null;
 let _auditLogCache = null;
@@ -125,6 +184,20 @@ function getDisplayRole(role) {
 
 // Helper function to read users
 async function readUsers() {
+  if (USE_KV) {
+    let users = await kvGet('users');
+    if (users === null) {
+      // Initialize KV from the seed file on first use
+      try {
+        const raw = await fs.readFile(USERS_FILE, 'utf8');
+        users = JSON.parse(raw);
+        await kvSet('users', users);
+      } catch {
+        users = [];
+      }
+    }
+    return users;
+  }
   if (_usersCache !== null) return _usersCache;
   try {
     if (IS_VERCEL) {
@@ -146,6 +219,16 @@ async function readUsers() {
   }
 }
 
+// Helper function to write users
+async function writeUsers(users) {
+  if (USE_KV) {
+    await kvSet('users', users);
+    return;
+  }
+  _usersCache = users;
+  await fs.writeFile(WRITE_USERS_FILE, JSON.stringify(users, null, 2));
+}
+
 // Authentication middleware for API routes
 function requireAuth(req, res, next) {
   if (!req.session.authenticated) {
@@ -164,6 +247,10 @@ function requireSuperAdmin(req, res, next) {
 
 // Helper function to read data
 async function readData() {
+  if (USE_KV) {
+    const data = await kvGet('data');
+    return data || { members: [], sessions: [] };
+  }
   if (_dataCache !== null) return _dataCache;
   try {
     if (IS_VERCEL) {
@@ -187,12 +274,20 @@ async function readData() {
 
 // Helper function to write data
 async function writeData(data) {
+  if (USE_KV) {
+    await kvSet('data', data);
+    return;
+  }
   _dataCache = data;
   await fs.writeFile(WRITE_DATA_FILE, JSON.stringify(data, null, 2));
 }
 
 // Helper function to read audit log
 async function readAuditLog() {
+  if (USE_KV) {
+    const logs = await kvGet('auditLog');
+    return logs || [];
+  }
   if (_auditLogCache !== null) return _auditLogCache;
   try {
     if (IS_VERCEL) {
@@ -214,6 +309,16 @@ async function readAuditLog() {
   }
 }
 
+// Helper function to write audit log
+async function writeAuditLog(logs) {
+  if (USE_KV) {
+    await kvSet('auditLog', logs);
+    return;
+  }
+  _auditLogCache = logs;
+  await fs.writeFile(WRITE_AUDIT_LOG_FILE, JSON.stringify(logs, null, 2));
+}
+
 // Helper function to log audit entry
 async function logAudit(action, data, username, skipLog = false) {
   // If skipLog is true, don't log the action (sam's privilege)
@@ -229,7 +334,7 @@ async function logAudit(action, data, username, skipLog = false) {
       action,
       data
     });
-    await fs.writeFile(WRITE_AUDIT_LOG_FILE, JSON.stringify(logs, null, 2));
+    await writeAuditLog(logs);
   } catch (error) {
     console.error('Error logging audit:', error);
   }
@@ -806,7 +911,7 @@ app.delete('/api/audit-log/:index', requireAuth, async (req, res) => {
     
     // Remove the log entry
     logs.splice(index, 1);
-    await fs.writeFile(WRITE_AUDIT_LOG_FILE, JSON.stringify(logs, null, 2));
+    await writeAuditLog(logs);
     
     res.json({ message: 'Log entry deleted' });
   } catch (error) {
@@ -831,7 +936,7 @@ app.put('/api/audit-log/:index/hide', requireAuth, async (req, res) => {
     
     // Toggle the hidden status
     logs[index].hidden = !logs[index].hidden;
-    await fs.writeFile(WRITE_AUDIT_LOG_FILE, JSON.stringify(logs, null, 2));
+    await writeAuditLog(logs);
     
     res.json({ 
       message: logs[index].hidden ? 'Log entry hidden' : 'Log entry unhidden',
@@ -869,7 +974,7 @@ app.put('/api/change-password', requireAuth, async (req, res) => {
     
     // Update password
     users[userIndex].password = newPassword;
-    await fs.writeFile(WRITE_USERS_FILE, JSON.stringify(users, null, 2));
+    await writeUsers(users);
     
     await logAudit('CHANGE_PASSWORD', { username: req.session.username }, req.session.username);
     
@@ -927,7 +1032,7 @@ app.post('/api/users', requireSuperAdmin, async (req, res) => {
     // Add new user
     const newUser = { username, password, role, displayName };
     users.push(newUser);
-    await fs.writeFile(WRITE_USERS_FILE, JSON.stringify(users, null, 2));
+    await writeUsers(users);
     
     await logAudit('ADD_USER', { username, role, displayName }, req.session.username);
     
@@ -983,7 +1088,7 @@ app.put('/api/users/:username', requireSuperAdmin, async (req, res) => {
     if (role) users[userIndex].role = role;
     if (displayName) users[userIndex].displayName = displayName;
     
-    await fs.writeFile(WRITE_USERS_FILE, JSON.stringify(users, null, 2));
+    await writeUsers(users);
     
     await logAudit('UPDATE_USER', { username, updates: { password: password ? '***' : undefined, role, displayName } }, req.session.username);
     
@@ -1027,7 +1132,7 @@ app.delete('/api/users/:username', requireSuperAdmin, async (req, res) => {
     
     // Remove user
     users.splice(userIndex, 1);
-    await fs.writeFile(WRITE_USERS_FILE, JSON.stringify(users, null, 2));
+    await writeUsers(users);
     
     await logAudit('DELETE_USER', { username, role: deletedRole }, req.session.username);
     
