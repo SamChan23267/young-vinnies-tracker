@@ -88,9 +88,22 @@ if (window.location.pathname.endsWith('session.html')) {
     // Load session details and attendance
     async function loadSessionDetails() {
         try {
+            const [sessionRes, membersRes] = await Promise.all([
+                fetch(`/api/sessions/${sessionId}`),
+                fetch('/api/members')
+            ]);
+
+            if (!sessionRes.ok) {
+                const errBody = await sessionRes.json().catch(parseErr => {
+                    console.error('Error parsing session error response:', parseErr);
+                    return {};
+                });
+                throw new Error(errBody.error || `Session request failed with status ${sessionRes.status}`);
+            }
+
             const [session, members] = await Promise.all([
-                fetch(`/api/sessions/${sessionId}`).then(res => res.json()),
-                fetch('/api/members').then(res => res.json())
+                sessionRes.json(),
+                membersRes.json()
             ]);
             
             currentSession = session;
@@ -206,7 +219,9 @@ if (window.location.pathname.endsWith('session.html')) {
 // Audit Log Page Functions
 if (window.location.pathname.endsWith('audit-log.html')) {
     
-    // Check authentication and super admin role
+    // Check authentication and super admin role, then load audit log.
+    // isSamUser must be set BEFORE loadAuditLog() renders the hide/show buttons,
+    // so we do both in a single async function to avoid a race condition.
     async function checkSuperAdmin() {
         try {
             const response = await fetch('/api/check-auth');
@@ -216,6 +231,9 @@ if (window.location.pathname.endsWith('audit-log.html')) {
             } else if (data.role !== 'super_admin' && data.role !== 'sam') {
                 showMessage('Access denied. Super admin only.', 'error');
                 setTimeout(() => window.location.href = 'index.html', 2000);
+            } else {
+                isSamUser = data.role === 'sam';
+                loadAuditLog();
             }
         } catch (error) {
             console.error('Auth check failed:', error);
@@ -243,6 +261,11 @@ if (window.location.pathname.endsWith('audit-log.html')) {
             logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
             
             tbody.innerHTML = logs.map((log, index) => {
+                // Use _idx (original position in server cache) for hide operations so
+                // that the server-side array lookup is correct after client-side sorting.
+                // _idx is included by the server only for sam users (the only users who
+                // can hide entries), so it is always defined when the button is rendered.
+                const serverIdx = log._idx;
                 const date = new Date(log.timestamp);
                 const formattedDate = date.toLocaleString();
                 const details = JSON.stringify(log.data, null, 2);
@@ -251,13 +274,13 @@ if (window.location.pathname.endsWith('audit-log.html')) {
                 const hiddenIndicator = isHidden ? ' 👁️‍🗨️ Hidden' : '';
                 
                 return `
-                    <tr class="audit-log-row${hiddenClass}" data-index="${index}">
+                    <tr class="audit-log-row${hiddenClass}" data-index="${serverIdx}">
                         <td>${formattedDate}</td>
                         <td><strong>${log.username || 'unknown'}</strong></td>
                         <td><span class="action-badge">${log.action}${hiddenIndicator}</span></td>
                         <td><pre style="margin: 0; font-size: 0.85em; max-width: 400px; overflow-x: auto;">${details}</pre></td>
                         ${isSamUser ? `<td>
-                            <button class="btn ${isHidden ? 'btn-warning' : 'btn-secondary'}" onclick="toggleHideAuditLogEntry(${index})" title="${isHidden ? 'Unhide this log entry' : 'Hide this log entry'}">
+                            <button class="btn ${isHidden ? 'btn-warning' : 'btn-secondary'}" onclick="toggleHideAuditLogEntry(${serverIdx})" title="${isHidden ? 'Unhide this log entry' : 'Hide this log entry'}">
                                 ${isHidden ? '👁️ Show' : '🔒 Hide'}
                             </button>
                         </td>` : ''}
@@ -269,9 +292,6 @@ if (window.location.pathname.endsWith('audit-log.html')) {
             showMessage('Failed to load audit log', 'error');
         }
     }
-    
-    // Initialize audit log page
-    loadAuditLog();
 }
 
 // Common initialization for all pages (except login)

@@ -2,6 +2,122 @@
 
 This guide will walk you through deploying the Young Vinnies Tracker to Vercel, step by step.
 
+---
+
+## ⚠️ How Vercel Works & Why You Must Set Up KV
+
+> **Read this section before deploying.** Skipping it will cause random data loss.
+
+### What is a "serverless" function?
+
+When you deploy to Vercel your Node.js app does **not** run as a single
+long-lived server process the way `npm start` does on your laptop. Instead
+Vercel packages it as a **serverless function**: a short-lived container
+that spins up on demand for each group of requests and is destroyed again
+after a period of inactivity.
+
+### Why does Vercel spin up *multiple* containers at once?
+
+Under normal traffic Vercel may keep just one container running. But the
+moment two requests arrive simultaneously — or Vercel's infrastructure
+decides to recycle a container — it launches a **second independent copy**
+of your app. Both copies run in complete isolation. Each one has:
+
+- its own **RAM** (so any in-memory cache is private to that container)
+- its own **`/tmp` folder** (writable, but private and ephemeral)
+
+### The "parallel universe" problem
+
+Imagine two containers, A and B, both starting from the empty seed files
+bundled in the repo:
+
+```
+User adds Alice  → goes to Container A → A writes Alice to its /tmp
+User adds Bob    → goes to Container B → B writes Bob to its /tmp
+User lists members → goes to Container A → returns [Alice]   ← Bob missing!
+User lists members → goes to Container B → returns [Bob]     ← Alice missing!
+User refreshes    → random container → sometimes [], [Alice], [Bob], or [Alice, Bob]
+```
+
+This is exactly the "parallel universe" symptom that was reported: different
+data on every refresh, members disappearing, "member not found" when editing.
+
+### Why does this happen even after we read from /tmp?
+
+Because **each container's `/tmp` is written independently**. Container A's
+`/tmp/data.json` only contains the writes that went through Container A.
+Container B has never seen those writes, so its `/tmp/data.json` is
+different (or empty). There is no synchronisation between them.
+
+### Why does KV fix it?
+
+Vercel KV is an **external** Redis database that lives *outside* all
+containers. Every container connects to the same URL and token. When
+Container A writes Alice, and Container B then reads, it reads from the
+same Redis store and sees Alice. The containers themselves are still
+isolated, but they all talk to one shared truth.
+
+```
+Container A ──writes Alice──► KV (shared Redis)
+Container B ──reads       ──► KV (shared Redis) → sees Alice ✓
+Container C ──reads       ──► KV (shared Redis) → sees Alice ✓
+```
+
+### Can I avoid KV?
+
+Short answer: **you can, but it requires switching to a different hosting
+platform** that runs a single persistent server process.
+
+| Option | Cost | Persistent storage? | Effort |
+|---|---|---|---|
+| **Vercel + KV (Upstash Redis free tier)** | Free up to 10 000 req/day | ✅ Yes | Low — just connect in dashboard |
+| **Railway** | Free trial, then ~$5/mo | ✅ Yes — real filesystem | Low — works without any code changes |
+| **Render** | Free tier (spins down when idle) | ✅ Yes — persistent disk add-on | Low |
+| **fly.io** | Generous free tier | ✅ Yes — persistent volume | Medium |
+| **Self-hosted VPS** (DigitalOcean, Linode, etc.) | ~$4–6/mo | ✅ Yes | Medium |
+| **Keep Vercel, no KV** | Free | ❌ No — data loss guaranteed | — |
+
+If you want to **stay on Vercel**, KV is the correct and easiest fix. The
+Upstash Redis free tier (10 000 commands/day, 256 MB) is more than enough
+for a school volunteer group.
+
+If you would rather **not use Vercel at all**, Railway is the simplest
+alternative: import your GitHub repo, and it runs `npm start` as a normal
+server with a writable filesystem — no KV needed, no code changes needed.
+
+### What about "deploying on GitHub" / GitHub Pages?
+
+**GitHub is not an app hosting platform — it is a code repository.**
+GitHub stores your source code and lets you manage changes, but it does not
+run a Node.js server for you.
+
+- **GitHub Pages** hosts *static* websites (plain HTML/CSS/JavaScript files
+  that run entirely in the browser). This app has a Node.js backend with an
+  Express server that reads and writes JSON files, handles authentication,
+  and serves a REST API. None of that can run on GitHub Pages.
+
+- **GitHub Actions** is a CI/CD pipeline tool. It can *build and deploy*
+  your code to another platform (e.g. push to Railway, trigger a Vercel
+  redeploy) but is not itself a server you can visit in a browser.
+
+- **GitHub Codespaces** is a cloud development environment meant for coding,
+  not for running a public production app.
+
+In short: **deploying "on GitHub" does not solve the problem** — GitHub
+cannot run this app at all. What GitHub *does* provide is the source code
+repository that platforms like Vercel and Railway pull from.
+
+**Recommendation:** Stick with one of the two free options:
+
+1. **Vercel + KV** — already set up in this repo; free; add the KV database
+   in the Vercel dashboard and you are done.
+2. **Railway** — free trial, no code changes needed, persistent filesystem
+   so no KV required. Go to https://railway.app, click "Deploy from GitHub
+   repo", select this repository, and Railway will run `npm start`
+   automatically.
+
+---
+
 ## 📋 What You'll Need
 
 Before you begin, make sure you have:
@@ -79,6 +195,28 @@ This is the simplest method and requires no command-line knowledge.
 1. Click "Deploy" button
 2. Wait for the build to complete (1-3 minutes)
 3. Once complete, you'll see "Congratulations!" with your deployment URL
+
+### Step 5b: Add Vercel KV Storage (Required to prevent data loss)
+
+Vercel runs multiple simultaneous function instances. Without a shared
+database each instance keeps its own private copy of your data, causing
+members, sessions and audit-log entries to randomly disappear on refresh
+("parallel universes"). Vercel KV (powered by Upstash **Redis**) fixes
+this by giving all instances a single shared store.
+
+1. In your Vercel project dashboard click **Storage** in the left sidebar.
+2. Click **Create Database**.
+3. Select **KV** from the list of database types.
+4. On the Upstash product-selection screen choose **Redis**
+   *(not Vector, Queue, or Search)*.
+5. Give it a name (e.g. `young-vinnies-kv`) and click **Create & Continue**.
+6. On the "Connect to Project" screen select your project and click
+   **Connect**.  Vercel automatically adds `KV_REST_API_URL` and
+   `KV_REST_API_TOKEN` to your project's environment variables.
+7. Go back to your project's **Deployments** tab and click **Redeploy**
+   on the latest deployment so the new env vars take effect.
+
+Your data will now persist correctly across all requests.
 
 ### Step 6: Post-Deployment Security
 
@@ -222,6 +360,26 @@ Vercel will:
 - Show you the production URL
 
 🎉 **Your app is now live!**
+
+### Step 6b: Add Vercel KV Storage (Required to prevent data loss)
+
+Vercel runs multiple simultaneous function instances. Without a shared
+database each instance keeps its own private copy of your data, causing
+members, sessions and audit-log entries to randomly disappear on refresh.
+Vercel KV (powered by Upstash **Redis**) fixes this.
+
+1. Open your Vercel project in the browser dashboard.
+2. Click **Storage** in the left sidebar → **Create Database** → **KV**.
+3. On the Upstash product-selection screen choose **Redis**
+   *(not Vector, Queue, or Search)*.
+4. Name it (e.g. `young-vinnies-kv`) and follow the wizard.
+5. On the "Connect to Project" screen select your project and click
+   **Connect**.  Vercel automatically adds `KV_REST_API_URL` and
+   `KV_REST_API_TOKEN` to your project's env vars.
+6. Redeploy to pick up the new variables:
+   ```bash
+   vercel --prod
+   ```
 
 ### Step 7: Post-Deployment Security
 
@@ -406,19 +564,25 @@ vercel --prod
 }
 ```
 
+### Issue: Members/sessions/audit-log show different data on every refresh
+
+**Cause:** Vercel is running multiple simultaneous function instances and
+each one has its own private `/tmp` folder. See the
+**"How Vercel Works & Why You Must Set Up KV"** section at the top of
+this guide for the full explanation.
+
+**Solution:** Set up Vercel KV (Upstash Redis) as described in Step 5b /
+Step 6b. This gives every instance a single shared data store.
+
 ### Issue: File writes not persisting (data.json, users.json)
 
-**Limitation:** Vercel's serverless functions have read-only file systems.
+**Cause:** Vercel's serverless functions run in isolated containers with
+private temporary storage. See the **"How Vercel Works"** section above.
 
-**Solutions:**
-1. **For small-scale use:** Files stored in serverless function memory (works for current session)
-2. **For production scale:** Consider:
-   - Vercel Postgres (database add-on)
-   - MongoDB Atlas (free tier available)
-   - Supabase (PostgreSQL + authentication)
-   - Railway (persistent file system)
-
-**Note:** For the Young Vinnies group's scale (< 100 members), the current JSON file approach may work short-term, but consider upgrading to a database for reliability.
+**Solution:** Set up Vercel KV — see Step 5b (Method A) or Step 6b
+(Method B). If you prefer not to use KV, deploy on Railway or another
+platform that runs a normal persistent server (see the "Can I avoid KV?"
+table in the explanation section above).
 
 ### Issue: Application is slow or times out
 
