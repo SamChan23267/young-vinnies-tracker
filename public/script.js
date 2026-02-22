@@ -311,11 +311,12 @@ if (window.location.pathname.endsWith('session.html')) {
     document.getElementById('edit-session-btn')?.addEventListener('click', () => {
         if (!currentSession) return;
         
-        document.getElementById('edit-session-id').value = currentSession.id;
-        document.getElementById('edit-session-date').value = currentSession.date;
-        document.getElementById('edit-session-description').value = currentSession.description;
-        document.getElementById('edit-session-hours').value = currentSession.hours || 1;
-        document.getElementById('edit-session-type').value = currentSession.sessionType || '';
+        const setVal = (elId, val) => { const el = document.getElementById(elId); if (el) el.value = val; };
+        setVal('edit-session-id', currentSession.id);
+        setVal('edit-session-date', currentSession.date);
+        setVal('edit-session-description', currentSession.description);
+        setVal('edit-session-hours', currentSession.hours || 1);
+        setVal('edit-session-type', currentSession.sessionType || '');
 
         // Populate custom fields, with backward compatibility for legacy fields
         const cf = currentSession.customFields ? { ...currentSession.customFields } : {};
@@ -324,7 +325,8 @@ if (window.location.pathname.endsWith('session.html')) {
         if (currentSession.notes && !cf['Notes']) cf['Notes'] = currentSession.notes;
         populateCustomFields('edit-session-custom-fields', cf);
         
-        document.getElementById('edit-session-modal').style.display = 'block';
+        const modal = document.getElementById('edit-session-modal');
+        if (modal) modal.style.display = 'block';
     });
 
     // Edit session form submission
@@ -1059,11 +1061,12 @@ if (window.location.pathname.endsWith('sessions.html')) {
         const session = allSessions.find(s => s.id === id);
         if (!session) return;
         
-        document.getElementById('edit-session-id').value = id;
-        document.getElementById('edit-session-date').value = session.date;
-        document.getElementById('edit-session-description').value = session.description;
-        document.getElementById('edit-session-hours').value = session.hours || 1;
-        document.getElementById('edit-session-type').value = session.sessionType || '';
+        const setVal = (elId, val) => { const el = document.getElementById(elId); if (el) el.value = val; };
+        setVal('edit-session-id', id);
+        setVal('edit-session-date', session.date);
+        setVal('edit-session-description', session.description);
+        setVal('edit-session-hours', session.hours || 1);
+        setVal('edit-session-type', session.sessionType || '');
 
         // Populate custom fields, with backward compatibility for legacy fields
         const cf = session.customFields ? { ...session.customFields } : {};
@@ -1072,7 +1075,8 @@ if (window.location.pathname.endsWith('sessions.html')) {
         if (session.notes && !cf['Notes']) cf['Notes'] = session.notes;
         populateCustomFields('edit-session-custom-fields', cf);
         
-        document.getElementById('edit-session-modal').style.display = 'block';
+        const modal = document.getElementById('edit-session-modal');
+        if (modal) modal.style.display = 'block';
     };
     
     // Delete session
