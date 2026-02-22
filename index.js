@@ -640,7 +640,7 @@ app.post('/api/sessions', requireAuth, async (req, res) => {
       date,
       description,
       hours: hours || 1, // Default to 1 hour if not specified
-      sessionType: sessionType || 'meeting', // 'meeting' or 'project'
+      sessionType: sessionType || '', // 'meeting', 'project', or '' (not set)
       attendees: [], // Will store member codes
       individualHours: {}, // Object to store individual hour overrides: { memberCode: hours }
       customFields: (customFields && typeof customFields === 'object') ? customFields : {}
