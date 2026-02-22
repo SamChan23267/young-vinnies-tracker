@@ -868,6 +868,105 @@ app.get('/api/export/csv', requireAuth, async (req, res) => {
   }
 });
 
+// GET /api/export/csv/returns - Generate and return a CSV in the Returns format
+app.get('/api/export/csv/returns', requireAuth, async (req, res) => {
+  try {
+    const data = await readData();
+    const sessionsParam = req.query.sessions;
+    const startDate = req.query.startDate;
+    const endDate = req.query.endDate;
+
+    let filteredSessions = data.sessions;
+
+    if (sessionsParam) {
+      const sessionIds = sessionsParam.split(',');
+      filteredSessions = filteredSessions.filter(s => sessionIds.includes(s.id));
+    }
+    if (startDate) {
+      filteredSessions = filteredSessions.filter(s => new Date(s.date) >= new Date(startDate));
+    }
+    if (endDate) {
+      filteredSessions = filteredSessions.filter(s => new Date(s.date) <= new Date(endDate));
+    }
+
+    // Sort by date ascending
+    filteredSessions.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    let csv = 'DATE,EVENT,# STUDENT VOLUNTEERS,HOURS PER PERSON,#TOTAL HOURS,WHO WAS HELPED,#ITEMS CONTRIBUTED/DETAILS,NOTES\n';
+
+    filteredSessions.forEach(session => {
+      const dateObj = new Date(session.date);
+      const formattedDate = `${dateObj.getDate()}/${dateObj.getMonth() + 1}/${dateObj.getFullYear()}`;
+      const numVolunteers = session.attendees.length;
+      const hoursPerPerson = session.hours || 1;
+
+      let totalHours = 0;
+      session.attendees.forEach(code => {
+        const indivHours = (session.individualHours && session.individualHours[code])
+          ? session.individualHours[code]
+          : hoursPerPerson;
+        totalHours += indivHours;
+      });
+
+      csv += `${formattedDate},${session.description.includes(',') ? '"' + session.description + '"' : session.description},${numVolunteers},${hoursPerPerson},${totalHours},,,\n`;
+    });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=returns.csv');
+    res.send(csv);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to export Returns CSV' });
+  }
+});
+
+// GET /api/export/csv/roll - Generate and return a CSV in the Roll format
+app.get('/api/export/csv/roll', requireAuth, async (req, res) => {
+  try {
+    const data = await readData();
+    const sessionsParam = req.query.sessions;
+    const startDate = req.query.startDate;
+    const endDate = req.query.endDate;
+
+    let filteredSessions = data.sessions;
+
+    if (sessionsParam) {
+      const sessionIds = sessionsParam.split(',');
+      filteredSessions = filteredSessions.filter(s => sessionIds.includes(s.id));
+    }
+    if (startDate) {
+      filteredSessions = filteredSessions.filter(s => new Date(s.date) >= new Date(startDate));
+    }
+    if (endDate) {
+      filteredSessions = filteredSessions.filter(s => new Date(s.date) <= new Date(endDate));
+    }
+
+    let csv = 'Full Name,Year,Email,# Meeting Attended,#Projects Assisted\n';
+
+    data.members.forEach(member => {
+      // Both counts track session attendance; the data model does not distinguish meetings from projects
+      let meetingsAttended = 0;
+      let projectsAssisted = 0;
+
+      filteredSessions.forEach(session => {
+        if (session.attendees.includes(member.code)) {
+          meetingsAttended++;
+          projectsAssisted++;
+        }
+      });
+
+      const name = member.name.includes(',') ? '"' + member.name + '"' : member.name;
+      // Email is left blank as the member data model does not store email addresses
+      csv += `${name},${member.yearLevel || ''},,${meetingsAttended},${projectsAssisted}\n`;
+    });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=roll.csv');
+    res.send(csv);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to export Roll CSV' });
+  }
+});
+
 // GET /api/audit-log - Get audit log (super admin only)
 app.get('/api/audit-log', requireSuperAdmin, async (req, res) => {
   try {

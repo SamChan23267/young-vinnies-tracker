@@ -1082,6 +1082,42 @@ if (window.location.pathname.endsWith('export.html')) {
         showMessage('Downloading CSV file...', 'success');
     });
     
+    // Export Returns CSV
+    document.getElementById('export-returns-btn')?.addEventListener('click', () => {
+        const startDate = document.getElementById('date-range-start').value;
+        const endDate = document.getElementById('date-range-end').value;
+
+        let url = '/api/export/csv/returns';
+        const params = [];
+        if (selectedSessions.size > 0 && selectedSessions.size < allSessions.length) {
+            params.push(`sessions=${Array.from(selectedSessions).join(',')}`);
+        }
+        if (startDate) params.push(`startDate=${startDate}`);
+        if (endDate) params.push(`endDate=${endDate}`);
+        if (params.length > 0) url += '?' + params.join('&');
+
+        window.location.href = url;
+        showMessage('Downloading Returns CSV file...', 'success');
+    });
+
+    // Export Roll CSV
+    document.getElementById('export-roll-btn')?.addEventListener('click', () => {
+        const startDate = document.getElementById('date-range-start').value;
+        const endDate = document.getElementById('date-range-end').value;
+
+        let url = '/api/export/csv/roll';
+        const params = [];
+        if (selectedSessions.size > 0 && selectedSessions.size < allSessions.length) {
+            params.push(`sessions=${Array.from(selectedSessions).join(',')}`);
+        }
+        if (startDate) params.push(`startDate=${startDate}`);
+        if (endDate) params.push(`endDate=${endDate}`);
+        if (params.length > 0) url += '?' + params.join('&');
+
+        window.location.href = url;
+        showMessage('Downloading Roll CSV file...', 'success');
+    });
+
     loadExportSessions();
 }
 
