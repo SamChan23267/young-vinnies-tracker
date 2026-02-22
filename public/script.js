@@ -6,11 +6,31 @@ function addCustomField(containerId, key, value) {
     const row = document.createElement('div');
     row.className = 'custom-field-row';
     row.style.cssText = 'display: flex; gap: 8px; margin-bottom: 6px; align-items: center;';
-    row.innerHTML = `
-        <input type="text" class="custom-field-key form-input" placeholder="Field name" value="${(key || '').replace(/"/g, '&quot;')}" style="flex: 1;">
-        <input type="text" class="custom-field-value form-input" placeholder="Value" value="${(value || '').replace(/"/g, '&quot;')}" style="flex: 1;">
-        <button type="button" class="btn btn-delete" onclick="this.parentElement.remove()" style="padding: 4px 10px;">✕</button>
-    `;
+
+    const keyInput = document.createElement('input');
+    keyInput.type = 'text';
+    keyInput.className = 'custom-field-key form-input';
+    keyInput.placeholder = 'Field name';
+    keyInput.value = key || '';
+    keyInput.style.flex = '1';
+
+    const valueInput = document.createElement('input');
+    valueInput.type = 'text';
+    valueInput.className = 'custom-field-value form-input';
+    valueInput.placeholder = 'Value';
+    valueInput.value = value || '';
+    valueInput.style.flex = '1';
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'btn btn-delete';
+    removeBtn.style.padding = '4px 10px';
+    removeBtn.textContent = '✕';
+    removeBtn.addEventListener('click', () => row.remove());
+
+    row.appendChild(keyInput);
+    row.appendChild(valueInput);
+    row.appendChild(removeBtn);
     container.appendChild(row);
 }
 
