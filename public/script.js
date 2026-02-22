@@ -1155,6 +1155,7 @@ if (window.location.pathname.endsWith('export.html')) {
         try {
             allSessions = await fetch('/api/sessions').then(res => res.json());
             displaySessionCheckboxes();
+            displayRRSessionCheckboxes();
         } catch (error) {
             console.error('Error loading sessions:', error);
         }
@@ -1259,17 +1260,16 @@ if (window.location.pathname.endsWith('export.html')) {
     
     // Export Returns CSV
     document.getElementById('export-returns-btn')?.addEventListener('click', () => {
-        const startDate = document.getElementById('date-range-start').value;
-        const endDate = document.getElementById('date-range-end').value;
+        const selectedRR = getSelectedRRSessions();
+        if (selectedRR.length === 0) {
+            showMessage('Please select at least one session to export', 'error');
+            return;
+        }
 
         let url = '/api/export/csv/returns';
-        const params = [];
-        if (selectedSessions.size > 0 && selectedSessions.size < allSessions.length) {
-            params.push(`sessions=${Array.from(selectedSessions).join(',')}`);
+        if (selectedRR.length < allSessions.length) {
+            url += '?sessions=' + selectedRR.join(',');
         }
-        if (startDate) params.push(`startDate=${startDate}`);
-        if (endDate) params.push(`endDate=${endDate}`);
-        if (params.length > 0) url += '?' + params.join('&');
 
         window.location.href = url;
         showMessage('Downloading Returns CSV file...', 'success');
@@ -1277,20 +1277,80 @@ if (window.location.pathname.endsWith('export.html')) {
 
     // Export Roll CSV
     document.getElementById('export-roll-btn')?.addEventListener('click', () => {
-        const startDate = document.getElementById('date-range-start').value;
-        const endDate = document.getElementById('date-range-end').value;
+        const selectedRR = getSelectedRRSessions();
+        if (selectedRR.length === 0) {
+            showMessage('Please select at least one session to export', 'error');
+            return;
+        }
 
         let url = '/api/export/csv/roll';
-        const params = [];
-        if (selectedSessions.size > 0 && selectedSessions.size < allSessions.length) {
-            params.push(`sessions=${Array.from(selectedSessions).join(',')}`);
+        if (selectedRR.length < allSessions.length) {
+            url += '?sessions=' + selectedRR.join(',');
         }
-        if (startDate) params.push(`startDate=${startDate}`);
-        if (endDate) params.push(`endDate=${endDate}`);
-        if (params.length > 0) url += '?' + params.join('&');
 
         window.location.href = url;
         showMessage('Downloading Roll CSV file...', 'success');
+    });
+
+    // Returns & Roll session list
+    function displayRRSessionCheckboxes() {
+        const container = document.getElementById('rr-session-list');
+        if (!container) return;
+
+        if (allSessions.length === 0) {
+            container.innerHTML = '<p class="empty-state">No sessions available.</p>';
+            return;
+        }
+
+        const sorted = [...allSessions].sort((a, b) => new Date(b.date) - new Date(a.date));
+        container.innerHTML = sorted.map(session => {
+            const typeLabel = session.sessionType === 'project' ? 'Project' : 'Meeting';
+            return `
+            <div class="session-checkbox-item">
+                <input type="checkbox" id="rr-session-${session.id}" value="${session.id}" checked>
+                <label for="rr-session-${session.id}" class="session-checkbox-label">
+                    <strong>${session.description}</strong>
+                    <span>${new Date(session.date).toLocaleDateString()} - ${typeLabel} - ${session.attendees.length} attendees</span>
+                </label>
+            </div>
+        `}).join('');
+    }
+
+    function getSelectedRRSessions() {
+        return Array.from(document.querySelectorAll('#rr-session-list input[type="checkbox"]:checked'))
+            .map(cb => cb.value);
+    }
+
+    // Select / deselect all for Returns & Roll
+    document.getElementById('rr-select-all')?.addEventListener('click', () => {
+        document.querySelectorAll('#rr-session-list input[type="checkbox"]').forEach(cb => cb.checked = true);
+    });
+    document.getElementById('rr-deselect-all')?.addEventListener('click', () => {
+        document.querySelectorAll('#rr-session-list input[type="checkbox"]').forEach(cb => cb.checked = false);
+    });
+
+    // Date range filter for Returns & Roll
+    document.getElementById('rr-apply-date-range')?.addEventListener('click', () => {
+        const startDate = document.getElementById('rr-date-start').value;
+        const endDate = document.getElementById('rr-date-end').value;
+        if (!startDate && !endDate) {
+            showMessage('Please set a start or end date', 'error');
+            return;
+        }
+        document.querySelectorAll('#rr-session-list .session-checkbox-item').forEach(item => {
+            const cb = item.querySelector('input[type="checkbox"]');
+            const session = allSessions.find(s => s.id === cb.value);
+            if (session) {
+                const d = new Date(session.date);
+                const inRange = (!startDate || d >= new Date(startDate)) && (!endDate || d <= new Date(endDate));
+                cb.checked = inRange;
+            }
+        });
+    });
+    document.getElementById('rr-clear-date-range')?.addEventListener('click', () => {
+        document.getElementById('rr-date-start').value = '';
+        document.getElementById('rr-date-end').value = '';
+        document.querySelectorAll('#rr-session-list input[type="checkbox"]').forEach(cb => cb.checked = true);
     });
 
     loadExportSessions();
