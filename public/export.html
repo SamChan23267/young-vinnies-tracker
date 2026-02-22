@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Export Data - Young Vinnies Tracker</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
     <div class="container">
@@ -91,6 +91,38 @@
                     <button id="export-all-btn" class="btn btn-primary">Export All Sessions</button>
                 </div>
             </section>
+
+            <!-- Returns & Roll Export Section -->
+            <section class="card">
+                <h2>📋 Returns &amp; Roll Export</h2>
+                <p>Export data in the Returns or Roll CSV format.</p>
+
+                <div class="form-group">
+                    <label>Date Range (select sessions by date):</label>
+                    <div class="date-range-inputs">
+                        <input type="date" id="rr-date-start" class="form-input">
+                        <span>to</span>
+                        <input type="date" id="rr-date-end" class="form-input">
+                        <button type="button" id="rr-apply-date-range" class="btn btn-primary">Apply</button>
+                        <button type="button" id="rr-clear-date-range" class="btn btn-secondary">Clear</button>
+                    </div>
+                </div>
+
+                <h3>Select Sessions</h3>
+                <div class="session-selection-controls">
+                    <button id="rr-select-all" class="btn btn-secondary">Select All</button>
+                    <button id="rr-deselect-all" class="btn btn-secondary">Deselect All</button>
+                </div>
+
+                <div id="rr-session-list" class="session-selection-list">
+                    <!-- Session checkboxes will be loaded here -->
+                </div>
+
+                <div class="export-actions">
+                    <button id="export-returns-btn" class="btn btn-success">Export Returns CSV</button>
+                    <button id="export-roll-btn" class="btn btn-success">Export Roll CSV</button>
+                </div>
+            </section>
         </main>
 
         <footer>
@@ -100,6 +132,6 @@
 
     <div id="message-container"></div>
 
-    <script src="script.js"></script>
+    <script src="script.js?v=2"></script>
 </body>
 </html>

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Session Attendance - Young Vinnies Tracker</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
     <div class="container">
@@ -30,10 +30,14 @@
             <section class="card">
                 <div class="session-header">
                     <a href="sessions.html" class="btn btn-secondary">← Back to Sessions</a>
+                    <button id="edit-session-btn" class="btn btn-edit" style="margin-left: 10px;">Edit Session</button>
                 </div>
                 <div id="session-details">
                     <h2 id="session-title">Loading...</h2>
                     <p id="session-info"></p>
+                    <div id="session-custom-fields-display">
+                        <!-- Custom fields will be displayed here -->
+                    </div>
                 </div>
 
                 <div class="attendance-section">
@@ -60,8 +64,62 @@
         </footer>
     </div>
 
+    <!-- Edit Session Modal -->
+    <div id="edit-session-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <h2>Edit Session</h2>
+            <form id="edit-session-form">
+                <input type="hidden" id="edit-session-id">
+                <div class="form-group">
+                    <label for="edit-session-date">Session Date:</label>
+                    <input type="date" id="edit-session-date" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-session-description">Description:</label>
+                    <input type="text" id="edit-session-description" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-session-hours">Hours:</label>
+                    <input type="number" id="edit-session-hours" min="1" max="24" step="1" value="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-session-type">Session Type (Optional):</label>
+                    <select id="edit-session-type" class="form-select">
+                        <option value="">-- None --</option>
+                        <option value="meeting">Meeting</option>
+                        <option value="project">Project</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Custom Fields:</label>
+                    <div id="edit-session-custom-fields">
+                        <!-- Dynamic custom fields will be added here -->
+                    </div>
+                    <div style="margin-top: 8px; display: flex; gap: 5px; flex-wrap: wrap;">
+                        <button type="button" class="btn btn-secondary" onclick="addCustomField('edit-session-custom-fields')">+ Add Field</button>
+                        <button type="button" class="btn btn-info" onclick="addPresetField('edit-session-custom-fields', 'Who Was Helped')">+ Who Was Helped</button>
+                        <button type="button" class="btn btn-info" onclick="addPresetField('edit-session-custom-fields', 'Items Contributed/Details')">+ Items Contributed</button>
+                        <button type="button" class="btn btn-info" onclick="addPresetField('edit-session-custom-fields', 'Notes')">+ Notes</button>
+                    </div>
+                </div>
+                <!-- Sam-only: Skip logging checkbox -->
+                <div class="form-group" id="edit-session-skip-log" style="display: none;">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="edit-session-skip-log-checkbox">
+                        🔒 Don't log this action (Sam privilege)
+                    </label>
+                </div>
+                <div class="modal-buttons">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="button" class="btn btn-secondary modal-cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div id="message-container"></div>
 
-    <script src="script.js"></script>
+    <script src="script.js?v=2"></script>
 </body>
 </html>

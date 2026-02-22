@@ -1,5 +1,77 @@
 // Utility Functions
 
+// Safe element value setter - prevents crash if element doesn't exist
+function setVal(elId, val) { const el = document.getElementById(elId); if (el) el.value = val; }
+
+// Custom field helpers for session forms
+function addCustomField(containerId, key, value) {
+    const container = document.getElementById(containerId);
+    const row = document.createElement('div');
+    row.className = 'custom-field-row';
+    row.style.cssText = 'display: flex; gap: 8px; margin-bottom: 6px; align-items: center;';
+
+    const keyInput = document.createElement('input');
+    keyInput.type = 'text';
+    keyInput.className = 'custom-field-key form-input';
+    keyInput.placeholder = 'Field name';
+    keyInput.value = key || '';
+    keyInput.style.flex = '1';
+
+    const valueInput = document.createElement('input');
+    valueInput.type = 'text';
+    valueInput.className = 'custom-field-value form-input';
+    valueInput.placeholder = 'Value';
+    valueInput.value = value || '';
+    valueInput.style.flex = '1';
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'btn btn-delete';
+    removeBtn.style.padding = '4px 10px';
+    removeBtn.textContent = '✕';
+    removeBtn.addEventListener('click', () => row.remove());
+
+    row.appendChild(keyInput);
+    row.appendChild(valueInput);
+    row.appendChild(removeBtn);
+    container.appendChild(row);
+}
+
+function addPresetField(containerId, presetKey) {
+    const container = document.getElementById(containerId);
+    const existing = container.querySelectorAll('.custom-field-key');
+    for (const input of existing) {
+        if (input.value === presetKey) {
+            input.closest('.custom-field-row').querySelector('.custom-field-value').focus();
+            return;
+        }
+    }
+    addCustomField(containerId, presetKey, '');
+}
+
+function getCustomFields(containerId) {
+    const container = document.getElementById(containerId);
+    const fields = {};
+    container.querySelectorAll('.custom-field-row').forEach(row => {
+        const key = row.querySelector('.custom-field-key').value.trim();
+        const value = row.querySelector('.custom-field-value').value.trim();
+        if (key) {
+            fields[key] = value;
+        }
+    });
+    return fields;
+}
+
+function populateCustomFields(containerId, customFields) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    if (customFields && typeof customFields === 'object') {
+        Object.entries(customFields).forEach(([key, value]) => {
+            addCustomField(containerId, key, value);
+        });
+    }
+}
+
 // Helper function to display role (hides sam role)
 function getDisplayRole(role) {
     if (role === 'sam') return 'Super Admin';
@@ -110,9 +182,35 @@ if (window.location.pathname.endsWith('session.html')) {
             const defaultHours = session.hours || 1;
             
             // Display session details
+            const typeLabel = session.sessionType === 'project' ? 'Project' : session.sessionType === 'meeting' ? 'Meeting' : '';
             document.getElementById('session-title').textContent = session.description;
             document.getElementById('session-info').textContent = 
-                `Date: ${new Date(session.date).toLocaleDateString()} | ${session.attendees.length} attendee(s) | ${defaultHours} hour(s) default`;
+                `Date: ${new Date(session.date).toLocaleDateString()}${typeLabel ? ' | Type: ' + typeLabel : ''} | ${session.attendees.length} attendee(s) | ${defaultHours} hour(s) default`;
+            
+            // Display custom fields
+            const cfDisplay = document.getElementById('session-custom-fields-display');
+            if (cfDisplay) {
+                const cf = session.customFields || {};
+                // Also include legacy fields for backward compatibility
+                if (session.whoWasHelped && !cf['Who Was Helped']) cf['Who Was Helped'] = session.whoWasHelped;
+                if (session.itemsContributed && !cf['Items Contributed/Details']) cf['Items Contributed/Details'] = session.itemsContributed;
+                if (session.notes && !cf['Notes']) cf['Notes'] = session.notes;
+                
+                const cfEntries = Object.entries(cf);
+                if (cfEntries.length > 0) {
+                    cfDisplay.innerHTML = '';
+                    cfEntries.forEach(([key, value]) => {
+                        const p = document.createElement('p');
+                        const strong = document.createElement('strong');
+                        strong.textContent = key + ':';
+                        p.appendChild(strong);
+                        p.appendChild(document.createTextNode(' ' + (value || 'Not set')));
+                        cfDisplay.appendChild(p);
+                    });
+                } else {
+                    cfDisplay.innerHTML = '';
+                }
+            }
             
             // Display attendance checkboxes with hour inputs
             const attendanceList = document.getElementById('attendance-list');
@@ -211,6 +309,64 @@ if (window.location.pathname.endsWith('session.html')) {
 
     // Add logout button handler
     document.getElementById('logout-btn')?.addEventListener('click', logout);
+
+    // Edit session button - open modal
+    document.getElementById('edit-session-btn')?.addEventListener('click', () => {
+        if (!currentSession) return;
+        
+        setVal('edit-session-id', currentSession.id);
+        setVal('edit-session-date', currentSession.date);
+        setVal('edit-session-description', currentSession.description);
+        setVal('edit-session-hours', currentSession.hours || 1);
+        setVal('edit-session-type', currentSession.sessionType || '');
+
+        // Populate custom fields, with backward compatibility for legacy fields
+        const cf = currentSession.customFields ? { ...currentSession.customFields } : {};
+        if (currentSession.whoWasHelped && !cf['Who Was Helped']) cf['Who Was Helped'] = currentSession.whoWasHelped;
+        if (currentSession.itemsContributed && !cf['Items Contributed/Details']) cf['Items Contributed/Details'] = currentSession.itemsContributed;
+        if (currentSession.notes && !cf['Notes']) cf['Notes'] = currentSession.notes;
+        populateCustomFields('edit-session-custom-fields', cf);
+        
+        const modal = document.getElementById('edit-session-modal');
+        if (modal) modal.style.display = 'block';
+    });
+
+    // Edit session form submission
+    document.getElementById('edit-session-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('edit-session-id').value;
+        const date = document.getElementById('edit-session-date').value;
+        const description = document.getElementById('edit-session-description').value.trim();
+        const hours = parseFloat(document.getElementById('edit-session-hours').value) || 1;
+        const sessionType = document.getElementById('edit-session-type').value;
+        const customFields = getCustomFields('edit-session-custom-fields');
+        const skipLog = getSkipLogValue('edit-session-skip-log-checkbox');
+        
+        if (!date || !description) return;
+        
+        try {
+            await apiCall(`/api/sessions/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date, description, hours, sessionType, customFields, skipLog })
+            });
+            
+            showMessage('Session updated successfully!', 'success');
+            document.getElementById('edit-session-modal').style.display = 'none';
+            loadSessionDetails();
+        } catch (error) {
+            console.error('Error updating session:', error);
+        }
+    });
+
+    // Modal close handlers
+    document.querySelector('#edit-session-modal .modal-close')?.addEventListener('click', () => {
+        document.getElementById('edit-session-modal').style.display = 'none';
+    });
+    
+    document.querySelector('#edit-session-modal .modal-cancel')?.addEventListener('click', () => {
+        document.getElementById('edit-session-modal').style.display = 'none';
+    });
 
     // Initialize session page
     loadSessionDetails();
@@ -600,9 +756,9 @@ if (window.location.pathname.endsWith('members.html')) {
         
         if (members.length === 0) {
             if (allMembers.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><p>No members yet. Add your first member above!</p></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><p>No members yet. Add your first member above!</p></td></tr>';
             } else {
-                tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><p>No members match the current filters.</p></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><p>No members match the current filters.</p></td></tr>';
             }
             return;
         }
@@ -626,6 +782,7 @@ if (window.location.pathname.endsWith('members.html')) {
                 <td>${member.name}</td>
                 <td><strong>${member.code}</strong></td>
                 <td>${member.yearLevel || '-'}</td>
+                <td>${member.email || '-'}</td>
                 <td>${totalHours} hrs</td>
                 <td>
                     <div class="action-buttons">
@@ -652,8 +809,10 @@ if (window.location.pathname.endsWith('members.html')) {
         e.preventDefault();
         const nameInput = document.getElementById('member-name');
         const yearLevelInput = document.getElementById('member-year-level');
+        const emailInput = document.getElementById('member-email');
         const name = nameInput.value.trim();
         const yearLevel = yearLevelInput.value.trim();
+        const email = emailInput.value.trim();
         const skipLog = getSkipLogValue('add-member-skip-log-checkbox');
         
         if (!name) return;
@@ -662,12 +821,13 @@ if (window.location.pathname.endsWith('members.html')) {
             const member = await apiCall('/api/members', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, yearLevel, skipLog })
+                body: JSON.stringify({ name, yearLevel, email, skipLog })
             });
             
             showMessage(`Member "${member.name}" added with code ${member.code}!`, 'success');
             nameInput.value = '';
             yearLevelInput.value = '';
+            emailInput.value = '';
             loadMembersPage();
         } catch (error) {
             console.error('Error adding member:', error);
@@ -683,6 +843,7 @@ if (window.location.pathname.endsWith('members.html')) {
         document.getElementById('edit-member-name').value = member.name;
         document.getElementById('edit-member-code').value = member.code;
         document.getElementById('edit-member-year-level').value = member.yearLevel || '';
+        document.getElementById('edit-member-email').value = member.email || '';
         
         document.getElementById('edit-member-modal').style.display = 'block';
     };
@@ -716,6 +877,7 @@ if (window.location.pathname.endsWith('members.html')) {
         const name = document.getElementById('edit-member-name').value.trim();
         const newCode = document.getElementById('edit-member-code').value.trim();
         const yearLevel = document.getElementById('edit-member-year-level').value.trim();
+        const email = document.getElementById('edit-member-email').value.trim();
         const skipLog = getSkipLogValue('edit-member-skip-log-checkbox');
         
         if (!name || !newCode) return;
@@ -724,7 +886,7 @@ if (window.location.pathname.endsWith('members.html')) {
             await apiCall(`/api/members/${oldCode}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, newCode, yearLevel, skipLog })
+                body: JSON.stringify({ name, newCode, yearLevel, email, skipLog })
             });
             
             showMessage(`Member updated successfully!`, 'success');
@@ -802,6 +964,7 @@ if (window.location.pathname.endsWith('sessions.html')) {
             const attendeeText = attendeeCount === 1 ? '1 attendee' : `${attendeeCount} attendees`;
             const hours = session.hours || 1;
             const totalHours = attendeeCount * hours;
+            const typeLabel = session.sessionType === 'project' ? 'Project' : session.sessionType === 'meeting' ? 'Meeting' : '';
             
             return `
                 <div class="session-item">
@@ -811,6 +974,7 @@ if (window.location.pathname.endsWith('sessions.html')) {
                     </div>
                     <h4>${session.description}</h4>
                     <p><strong>Date:</strong> ${new Date(session.date).toLocaleDateString()}</p>
+                    ${typeLabel ? `<p><strong>Type:</strong> ${typeLabel}</p>` : ''}
                     <p><strong>Duration:</strong> ${hours} hour${hours !== 1 ? 's' : ''}</p>
                     <p><strong>Attendance:</strong> ${attendeeText} (${totalHours} total hours)</p>
                     ${session.attendees.length > 0 ? `
@@ -863,10 +1027,13 @@ if (window.location.pathname.endsWith('sessions.html')) {
         const dateInput = document.getElementById('session-date');
         const descriptionInput = document.getElementById('session-description');
         const hoursInput = document.getElementById('session-hours');
+        const sessionTypeInput = document.getElementById('session-type');
         
         const date = dateInput.value;
         const description = descriptionInput.value.trim();
         const hours = parseFloat(hoursInput.value) || 1;
+        const sessionType = sessionTypeInput.value;
+        const customFields = getCustomFields('session-custom-fields');
         
         if (!date || !description) return;
         
@@ -876,13 +1043,15 @@ if (window.location.pathname.endsWith('sessions.html')) {
             const session = await apiCall('/api/sessions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ date, description, hours, skipLog })
+                body: JSON.stringify({ date, description, hours, sessionType, customFields, skipLog })
             });
             
             showMessage(`Session "${session.description}" created with ${session.hours} hour(s)!`, 'success');
             dateInput.value = '';
             descriptionInput.value = '';
             hoursInput.value = '1';
+            sessionTypeInput.value = '';
+            document.getElementById('session-custom-fields').innerHTML = '';
             loadSessionsPage();
         } catch (error) {
             console.error('Error creating session:', error);
@@ -894,12 +1063,21 @@ if (window.location.pathname.endsWith('sessions.html')) {
         const session = allSessions.find(s => s.id === id);
         if (!session) return;
         
-        document.getElementById('edit-session-id').value = id;
-        document.getElementById('edit-session-date').value = session.date;
-        document.getElementById('edit-session-description').value = session.description;
-        document.getElementById('edit-session-hours').value = session.hours || 1;
+        setVal('edit-session-id', id);
+        setVal('edit-session-date', session.date);
+        setVal('edit-session-description', session.description);
+        setVal('edit-session-hours', session.hours || 1);
+        setVal('edit-session-type', session.sessionType || '');
+
+        // Populate custom fields, with backward compatibility for legacy fields
+        const cf = session.customFields ? { ...session.customFields } : {};
+        if (session.whoWasHelped && !cf['Who Was Helped']) cf['Who Was Helped'] = session.whoWasHelped;
+        if (session.itemsContributed && !cf['Items Contributed/Details']) cf['Items Contributed/Details'] = session.itemsContributed;
+        if (session.notes && !cf['Notes']) cf['Notes'] = session.notes;
+        populateCustomFields('edit-session-custom-fields', cf);
         
-        document.getElementById('edit-session-modal').style.display = 'block';
+        const modal = document.getElementById('edit-session-modal');
+        if (modal) modal.style.display = 'block';
     };
     
     // Delete session
@@ -931,6 +1109,8 @@ if (window.location.pathname.endsWith('sessions.html')) {
         const date = document.getElementById('edit-session-date').value;
         const description = document.getElementById('edit-session-description').value.trim();
         const hours = parseFloat(document.getElementById('edit-session-hours').value) || 1;
+        const sessionType = document.getElementById('edit-session-type').value;
+        const customFields = getCustomFields('edit-session-custom-fields');
         const skipLog = getSkipLogValue('edit-session-skip-log-checkbox');
         
         if (!date || !description) return;
@@ -939,7 +1119,7 @@ if (window.location.pathname.endsWith('sessions.html')) {
             await apiCall(`/api/sessions/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ date, description, hours, skipLog })
+                body: JSON.stringify({ date, description, hours, sessionType, customFields, skipLog })
             });
             
             showMessage(`Session updated successfully!`, 'success');
@@ -980,6 +1160,7 @@ if (window.location.pathname.endsWith('export.html')) {
         try {
             allSessions = await fetch('/api/sessions').then(res => res.json());
             displaySessionCheckboxes();
+            displayRRSessionCheckboxes();
         } catch (error) {
             console.error('Error loading sessions:', error);
         }
@@ -1082,6 +1263,103 @@ if (window.location.pathname.endsWith('export.html')) {
         showMessage('Downloading CSV file...', 'success');
     });
     
+    // Export Returns CSV
+    document.getElementById('export-returns-btn')?.addEventListener('click', () => {
+        const selectedRR = getSelectedRRSessions();
+        if (selectedRR.length === 0) {
+            showMessage('Please select at least one session to export', 'error');
+            return;
+        }
+
+        let url = '/api/export/csv/returns';
+        if (selectedRR.length < allSessions.length) {
+            url += '?sessions=' + selectedRR.join(',');
+        }
+
+        window.location.href = url;
+        showMessage('Downloading Returns CSV file...', 'success');
+    });
+
+    // Export Roll CSV
+    document.getElementById('export-roll-btn')?.addEventListener('click', () => {
+        const selectedRR = getSelectedRRSessions();
+        if (selectedRR.length === 0) {
+            showMessage('Please select at least one session to export', 'error');
+            return;
+        }
+
+        let url = '/api/export/csv/roll';
+        if (selectedRR.length < allSessions.length) {
+            url += '?sessions=' + selectedRR.join(',');
+        }
+
+        window.location.href = url;
+        showMessage('Downloading Roll CSV file...', 'success');
+    });
+
+    // Returns & Roll session list
+    function displayRRSessionCheckboxes() {
+        const container = document.getElementById('rr-session-list');
+        if (!container) return;
+
+        if (allSessions.length === 0) {
+            container.innerHTML = '<p class="empty-state">No sessions available.</p>';
+            return;
+        }
+
+        const sorted = [...allSessions].sort((a, b) => new Date(b.date) - new Date(a.date));
+        container.innerHTML = sorted.map(session => {
+            const typeLabel = session.sessionType === 'project' ? 'Project' : session.sessionType === 'meeting' ? 'Meeting' : '';
+            return `
+            <div class="session-checkbox-item">
+                <input type="checkbox" id="rr-session-${session.id}" value="${session.id}" checked>
+                <label for="rr-session-${session.id}" class="session-checkbox-label">
+                    <strong>${session.description}</strong>
+                    <span>${new Date(session.date).toLocaleDateString()}${typeLabel ? ' - ' + typeLabel : ''} - ${session.attendees.length} attendees</span>
+                </label>
+            </div>
+        `}).join('');
+    }
+
+    function getSelectedRRSessions() {
+        return Array.from(document.querySelectorAll('#rr-session-list input[type="checkbox"]:checked'))
+            .map(cb => cb.value);
+    }
+
+    // Select / deselect all for Returns & Roll
+    document.getElementById('rr-select-all')?.addEventListener('click', () => {
+        document.querySelectorAll('#rr-session-list input[type="checkbox"]').forEach(cb => cb.checked = true);
+    });
+    document.getElementById('rr-deselect-all')?.addEventListener('click', () => {
+        document.querySelectorAll('#rr-session-list input[type="checkbox"]').forEach(cb => cb.checked = false);
+    });
+
+    // Date range filter for Returns & Roll
+    document.getElementById('rr-apply-date-range')?.addEventListener('click', () => {
+        const startDate = document.getElementById('rr-date-start').value;
+        const endDate = document.getElementById('rr-date-end').value;
+        if (!startDate && !endDate) {
+            showMessage('Please set a start or end date', 'error');
+            return;
+        }
+        const startD = startDate ? new Date(startDate) : null;
+        const endD = endDate ? new Date(endDate) : null;
+        document.querySelectorAll('#rr-session-list .session-checkbox-item').forEach(item => {
+            const cb = item.querySelector('input[type="checkbox"]');
+            const session = allSessions.find(s => String(s.id) === cb.value);
+            if (session) {
+                const d = new Date(session.date);
+                const inRange = (!startD || d >= startD) && (!endD || d <= endD);
+                cb.checked = inRange;
+            }
+        });
+    });
+    document.getElementById('rr-clear-date-range')?.addEventListener('click', () => {
+        document.getElementById('rr-date-start').value = '';
+        document.getElementById('rr-date-end').value = '';
+        document.querySelectorAll('#rr-session-list input[type="checkbox"]').forEach(cb => cb.checked = true);
+    });
+
     loadExportSessions();
 }
 

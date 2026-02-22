@@ -90,7 +90,14 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders: (res, filePath) => {
+    // Prevent stale caches for JS/CSS/HTML files
+    if (filePath.endsWith('.js') || filePath.endsWith('.css') || filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  }
+}));
 
 // File paths
 const DATA_FILE = path.join(__dirname, 'data.json');
@@ -446,7 +453,7 @@ app.get('/api/members', requireAuth, async (req, res) => {
 // POST /api/members - Add a new member
 app.post('/api/members', requireAuth, async (req, res) => {
   try {
-    const { name, yearLevel, skipLog } = req.body;
+    const { name, yearLevel, email, skipLog } = req.body;
     
     if (!name || name.trim() === '') {
       return res.status(400).json({ error: 'Name is required' });
@@ -460,6 +467,7 @@ app.post('/api/members', requireAuth, async (req, res) => {
       name: name.trim(),
       code,
       yearLevel: yearLevel || '',
+      email: email || '',
       manualHours: 0  // Initialize manual hours
     };
     
@@ -477,7 +485,7 @@ app.post('/api/members', requireAuth, async (req, res) => {
 app.put('/api/members/:code', requireAuth, async (req, res) => {
   try {
     const { code } = req.params;
-    const { name, newCode, yearLevel, skipLog } = req.body;
+    const { name, newCode, yearLevel, email, skipLog } = req.body;
     
     if (!name || name.trim() === '') {
       return res.status(400).json({ error: 'Name is required' });
@@ -509,6 +517,7 @@ app.put('/api/members/:code', requireAuth, async (req, res) => {
       name: name.trim(),
       code: updatedCode,
       yearLevel: yearLevel || '',
+      email: email !== undefined ? email : (data.members[memberIndex].email || ''),
       manualHours: manualHours
     };
     
@@ -624,7 +633,7 @@ app.get('/api/sessions', requireAuth, async (req, res) => {
 // POST /api/sessions - Create a new session
 app.post('/api/sessions', requireAuth, async (req, res) => {
   try {
-    const { date, description, hours, skipLog } = req.body;
+    const { date, description, hours, sessionType, customFields, skipLog } = req.body;
     
     if (!date || !description) {
       return res.status(400).json({ error: 'Date and description are required' });
@@ -638,8 +647,10 @@ app.post('/api/sessions', requireAuth, async (req, res) => {
       date,
       description,
       hours: hours || 1, // Default to 1 hour if not specified
+      sessionType: sessionType || '', // 'meeting', 'project', or '' (not set)
       attendees: [], // Will store member codes
-      individualHours: {} // Object to store individual hour overrides: { memberCode: hours }
+      individualHours: {}, // Object to store individual hour overrides: { memberCode: hours }
+      customFields: (customFields && typeof customFields === 'object') ? customFields : {}
     };
     
     data.sessions.push(newSession);
@@ -713,7 +724,7 @@ app.put('/api/sessions/:id/attendance', requireAuth, async (req, res) => {
 app.put('/api/sessions/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const { date, description, hours, skipLog } = req.body;
+    const { date, description, hours, sessionType, customFields, skipLog } = req.body;
     
     if (!date || !description) {
       return res.status(400).json({ error: 'Date and description are required' });
@@ -731,6 +742,12 @@ app.put('/api/sessions/:id', requireAuth, async (req, res) => {
     data.sessions[sessionIndex].description = description;
     if (hours !== undefined) {
       data.sessions[sessionIndex].hours = hours;
+    }
+    if (sessionType !== undefined) {
+      data.sessions[sessionIndex].sessionType = sessionType;
+    }
+    if (customFields !== undefined && typeof customFields === 'object') {
+      data.sessions[sessionIndex].customFields = customFields;
     }
     
     await writeData(data);
@@ -865,6 +882,144 @@ app.get('/api/export/csv', requireAuth, async (req, res) => {
     res.send(csv);
   } catch (error) {
     res.status(500).json({ error: 'Failed to export CSV' });
+  }
+});
+
+// GET /api/export/csv/returns - Generate and return a CSV in the Returns format
+app.get('/api/export/csv/returns', requireAuth, async (req, res) => {
+  try {
+    const data = await readData();
+    const sessionsParam = req.query.sessions;
+    const startDate = req.query.startDate;
+    const endDate = req.query.endDate;
+
+    let filteredSessions = data.sessions;
+
+    if (sessionsParam) {
+      const sessionIds = sessionsParam.split(',');
+      filteredSessions = filteredSessions.filter(s => sessionIds.includes(s.id));
+    }
+    if (startDate) {
+      filteredSessions = filteredSessions.filter(s => new Date(s.date) >= new Date(startDate));
+    }
+    if (endDate) {
+      filteredSessions = filteredSessions.filter(s => new Date(s.date) <= new Date(endDate));
+    }
+
+    // Sort by date ascending
+    filteredSessions.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    // Escape a value for safe CSV output
+    const csvEscape = (val) => {
+      const str = String(val);
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return '"' + str.replace(/"/g, '""') + '"';
+      }
+      return str;
+    };
+
+    let csv = 'DATE,EVENT,# STUDENT VOLUNTEERS,HOURS PER PERSON,#TOTAL HOURS,WHO WAS HELPED,#ITEMS CONTRIBUTED/DETAILS,NOTES\n';
+
+    filteredSessions.forEach(session => {
+      const dateObj = new Date(session.date);
+      const formattedDate = `${dateObj.getDate()}/${dateObj.getMonth() + 1}/${dateObj.getFullYear()}`;
+      const numVolunteers = session.attendees.length;
+      const hoursPerPerson = session.hours || 1;
+
+      let totalHours = 0;
+      session.attendees.forEach(code => {
+        const indivHours = (session.individualHours && session.individualHours[code])
+          ? session.individualHours[code]
+          : hoursPerPerson;
+        totalHours += indivHours;
+      });
+
+      // Read from customFields, falling back to legacy fields for backward compatibility
+      const cf = session.customFields || {};
+      const whoWasHelped = cf['Who Was Helped'] || session.whoWasHelped || '';
+      const itemsContributed = cf['Items Contributed/Details'] || session.itemsContributed || '';
+      const sessionNotes = cf['Notes'] || session.notes || '';
+
+      csv += [
+        formattedDate,
+        csvEscape(session.description),
+        numVolunteers,
+        hoursPerPerson,
+        totalHours,
+        csvEscape(whoWasHelped),
+        csvEscape(itemsContributed),
+        csvEscape(sessionNotes)
+      ].join(',') + '\n';
+    });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=returns.csv');
+    res.send(csv);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to export Returns CSV' });
+  }
+});
+
+// GET /api/export/csv/roll - Generate and return a CSV in the Roll format
+app.get('/api/export/csv/roll', requireAuth, async (req, res) => {
+  try {
+    const data = await readData();
+    const sessionsParam = req.query.sessions;
+    const startDate = req.query.startDate;
+    const endDate = req.query.endDate;
+
+    let filteredSessions = data.sessions;
+
+    if (sessionsParam) {
+      const sessionIds = sessionsParam.split(',');
+      filteredSessions = filteredSessions.filter(s => sessionIds.includes(s.id));
+    }
+    if (startDate) {
+      filteredSessions = filteredSessions.filter(s => new Date(s.date) >= new Date(startDate));
+    }
+    if (endDate) {
+      filteredSessions = filteredSessions.filter(s => new Date(s.date) <= new Date(endDate));
+    }
+
+    // Escape a value for safe CSV output
+    const csvEscape = (val) => {
+      const str = String(val);
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return '"' + str.replace(/"/g, '""') + '"';
+      }
+      return str;
+    };
+
+    let csv = 'Full Name,Year,Email,# Meeting Attended,#Projects Assisted\n';
+
+    data.members.forEach(member => {
+      let meetingsAttended = 0;
+      let projectsAssisted = 0;
+
+      filteredSessions.forEach(session => {
+        if (session.attendees.includes(member.code)) {
+          if (session.sessionType === 'project') {
+            projectsAssisted++;
+          } else {
+            meetingsAttended++;
+          }
+        }
+      });
+
+      csv += [
+        csvEscape(member.name),
+        member.yearLevel || '',
+        csvEscape(member.email || ''),
+        meetingsAttended,
+        projectsAssisted
+      ].join(',') + '\n';
+    });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=roll.csv');
+    res.send(csv);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to export Roll CSV' });
   }
 });
 

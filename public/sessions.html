@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sessions - Young Vinnies Tracker</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
     <div class="container">
@@ -46,6 +46,26 @@
                             <label for="session-hours">Hours:</label>
                             <input type="number" id="session-hours" min="1" max="24" step="1" value="1" required>
                             <small style="color: #666; display: block; margin-top: 5px;">Default hours for this session (whole numbers only)</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="session-type">Session Type (Optional):</label>
+                            <select id="session-type" class="form-select">
+                                <option value="">-- None --</option>
+                                <option value="meeting">Meeting</option>
+                                <option value="project">Project</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Custom Fields:</label>
+                            <div id="session-custom-fields">
+                                <!-- Dynamic custom fields will be added here -->
+                            </div>
+                            <div style="margin-top: 8px; display: flex; gap: 5px; flex-wrap: wrap;">
+                                <button type="button" class="btn btn-secondary" onclick="addCustomField('session-custom-fields')">+ Add Field</button>
+                                <button type="button" class="btn btn-info" onclick="addPresetField('session-custom-fields', 'Who Was Helped')">+ Who Was Helped</button>
+                                <button type="button" class="btn btn-info" onclick="addPresetField('session-custom-fields', 'Items Contributed/Details')">+ Items Contributed</button>
+                                <button type="button" class="btn btn-info" onclick="addPresetField('session-custom-fields', 'Notes')">+ Notes</button>
+                            </div>
                         </div>
                         <!-- Sam-only: Skip logging checkbox -->
                         <div class="form-group" id="create-session-skip-log" style="display: none;">
@@ -104,6 +124,26 @@
                     <label for="edit-session-hours">Hours:</label>
                     <input type="number" id="edit-session-hours" min="1" max="24" step="1" value="1" required>
                 </div>
+                <div class="form-group">
+                    <label for="edit-session-type">Session Type (Optional):</label>
+                    <select id="edit-session-type" class="form-select">
+                        <option value="">-- None --</option>
+                        <option value="meeting">Meeting</option>
+                        <option value="project">Project</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Custom Fields:</label>
+                    <div id="edit-session-custom-fields">
+                        <!-- Dynamic custom fields will be added here -->
+                    </div>
+                    <div style="margin-top: 8px; display: flex; gap: 5px; flex-wrap: wrap;">
+                        <button type="button" class="btn btn-secondary" onclick="addCustomField('edit-session-custom-fields')">+ Add Field</button>
+                        <button type="button" class="btn btn-info" onclick="addPresetField('edit-session-custom-fields', 'Who Was Helped')">+ Who Was Helped</button>
+                        <button type="button" class="btn btn-info" onclick="addPresetField('edit-session-custom-fields', 'Items Contributed/Details')">+ Items Contributed</button>
+                        <button type="button" class="btn btn-info" onclick="addPresetField('edit-session-custom-fields', 'Notes')">+ Notes</button>
+                    </div>
+                </div>
                 <!-- Sam-only: Skip logging checkbox -->
                 <div class="form-group" id="edit-session-skip-log" style="display: none;">
                     <label class="checkbox-label">
@@ -121,6 +161,6 @@
 
     <div id="message-container"></div>
 
-    <script src="script.js"></script>
+    <script src="script.js?v=2"></script>
 </body>
 </html>
