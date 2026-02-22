@@ -193,11 +193,15 @@ if (window.location.pathname.endsWith('session.html')) {
             
             const cfEntries = Object.entries(cf);
             if (cfEntries.length > 0) {
-                cfDisplay.innerHTML = cfEntries.map(([key, value]) => {
-                    const safeKey = key.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                    const safeValue = (value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                    return `<p><strong>${safeKey}:</strong> ${safeValue || '<em>Not set</em>'}</p>`;
-                }).join('');
+                cfDisplay.innerHTML = '';
+                cfEntries.forEach(([key, value]) => {
+                    const p = document.createElement('p');
+                    const strong = document.createElement('strong');
+                    strong.textContent = key + ':';
+                    p.appendChild(strong);
+                    p.appendChild(document.createTextNode(' ' + (value || 'Not set')));
+                    cfDisplay.appendChild(p);
+                });
             } else {
                 cfDisplay.innerHTML = '';
             }
