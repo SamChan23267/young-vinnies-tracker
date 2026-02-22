@@ -47,6 +47,18 @@
                             <input type="number" id="session-hours" min="1" max="24" step="1" value="1" required>
                             <small style="color: #666; display: block; margin-top: 5px;">Default hours for this session (whole numbers only)</small>
                         </div>
+                        <div class="form-group">
+                            <label for="session-who-was-helped">Who Was Helped:</label>
+                            <input type="text" id="session-who-was-helped" placeholder="e.g. Students, Families, Elderly">
+                        </div>
+                        <div class="form-group">
+                            <label for="session-items-contributed">Items Contributed/Details:</label>
+                            <input type="text" id="session-items-contributed" placeholder="e.g. 65 meals, $500">
+                        </div>
+                        <div class="form-group">
+                            <label for="session-notes">Notes:</label>
+                            <input type="text" id="session-notes" placeholder="Additional notes">
+                        </div>
                         <!-- Sam-only: Skip logging checkbox -->
                         <div class="form-group" id="create-session-skip-log" style="display: none;">
                             <label class="checkbox-label">
@@ -103,6 +115,18 @@
                 <div class="form-group">
                     <label for="edit-session-hours">Hours:</label>
                     <input type="number" id="edit-session-hours" min="1" max="24" step="1" value="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-session-who-was-helped">Who Was Helped:</label>
+                    <input type="text" id="edit-session-who-was-helped" placeholder="e.g. Students, Families, Elderly">
+                </div>
+                <div class="form-group">
+                    <label for="edit-session-items-contributed">Items Contributed/Details:</label>
+                    <input type="text" id="edit-session-items-contributed" placeholder="e.g. 65 meals, $500">
+                </div>
+                <div class="form-group">
+                    <label for="edit-session-notes">Notes:</label>
+                    <input type="text" id="edit-session-notes" placeholder="Additional notes">
                 </div>
                 <!-- Sam-only: Skip logging checkbox -->
                 <div class="form-group" id="edit-session-skip-log" style="display: none;">

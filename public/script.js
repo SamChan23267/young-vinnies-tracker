@@ -652,8 +652,10 @@ if (window.location.pathname.endsWith('members.html')) {
         e.preventDefault();
         const nameInput = document.getElementById('member-name');
         const yearLevelInput = document.getElementById('member-year-level');
+        const emailInput = document.getElementById('member-email');
         const name = nameInput.value.trim();
         const yearLevel = yearLevelInput.value.trim();
+        const email = emailInput.value.trim();
         const skipLog = getSkipLogValue('add-member-skip-log-checkbox');
         
         if (!name) return;
@@ -662,12 +664,13 @@ if (window.location.pathname.endsWith('members.html')) {
             const member = await apiCall('/api/members', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, yearLevel, skipLog })
+                body: JSON.stringify({ name, yearLevel, email, skipLog })
             });
             
             showMessage(`Member "${member.name}" added with code ${member.code}!`, 'success');
             nameInput.value = '';
             yearLevelInput.value = '';
+            emailInput.value = '';
             loadMembersPage();
         } catch (error) {
             console.error('Error adding member:', error);
@@ -683,6 +686,7 @@ if (window.location.pathname.endsWith('members.html')) {
         document.getElementById('edit-member-name').value = member.name;
         document.getElementById('edit-member-code').value = member.code;
         document.getElementById('edit-member-year-level').value = member.yearLevel || '';
+        document.getElementById('edit-member-email').value = member.email || '';
         
         document.getElementById('edit-member-modal').style.display = 'block';
     };
@@ -716,6 +720,7 @@ if (window.location.pathname.endsWith('members.html')) {
         const name = document.getElementById('edit-member-name').value.trim();
         const newCode = document.getElementById('edit-member-code').value.trim();
         const yearLevel = document.getElementById('edit-member-year-level').value.trim();
+        const email = document.getElementById('edit-member-email').value.trim();
         const skipLog = getSkipLogValue('edit-member-skip-log-checkbox');
         
         if (!name || !newCode) return;
@@ -724,7 +729,7 @@ if (window.location.pathname.endsWith('members.html')) {
             await apiCall(`/api/members/${oldCode}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, newCode, yearLevel, skipLog })
+                body: JSON.stringify({ name, newCode, yearLevel, email, skipLog })
             });
             
             showMessage(`Member updated successfully!`, 'success');
@@ -863,10 +868,16 @@ if (window.location.pathname.endsWith('sessions.html')) {
         const dateInput = document.getElementById('session-date');
         const descriptionInput = document.getElementById('session-description');
         const hoursInput = document.getElementById('session-hours');
+        const whoWasHelpedInput = document.getElementById('session-who-was-helped');
+        const itemsContributedInput = document.getElementById('session-items-contributed');
+        const notesInput = document.getElementById('session-notes');
         
         const date = dateInput.value;
         const description = descriptionInput.value.trim();
         const hours = parseFloat(hoursInput.value) || 1;
+        const whoWasHelped = whoWasHelpedInput.value.trim();
+        const itemsContributed = itemsContributedInput.value.trim();
+        const notes = notesInput.value.trim();
         
         if (!date || !description) return;
         
@@ -876,13 +887,16 @@ if (window.location.pathname.endsWith('sessions.html')) {
             const session = await apiCall('/api/sessions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ date, description, hours, skipLog })
+                body: JSON.stringify({ date, description, hours, whoWasHelped, itemsContributed, notes, skipLog })
             });
             
             showMessage(`Session "${session.description}" created with ${session.hours} hour(s)!`, 'success');
             dateInput.value = '';
             descriptionInput.value = '';
             hoursInput.value = '1';
+            whoWasHelpedInput.value = '';
+            itemsContributedInput.value = '';
+            notesInput.value = '';
             loadSessionsPage();
         } catch (error) {
             console.error('Error creating session:', error);
@@ -898,6 +912,9 @@ if (window.location.pathname.endsWith('sessions.html')) {
         document.getElementById('edit-session-date').value = session.date;
         document.getElementById('edit-session-description').value = session.description;
         document.getElementById('edit-session-hours').value = session.hours || 1;
+        document.getElementById('edit-session-who-was-helped').value = session.whoWasHelped || '';
+        document.getElementById('edit-session-items-contributed').value = session.itemsContributed || '';
+        document.getElementById('edit-session-notes').value = session.notes || '';
         
         document.getElementById('edit-session-modal').style.display = 'block';
     };
@@ -931,6 +948,9 @@ if (window.location.pathname.endsWith('sessions.html')) {
         const date = document.getElementById('edit-session-date').value;
         const description = document.getElementById('edit-session-description').value.trim();
         const hours = parseFloat(document.getElementById('edit-session-hours').value) || 1;
+        const whoWasHelped = document.getElementById('edit-session-who-was-helped').value.trim();
+        const itemsContributed = document.getElementById('edit-session-items-contributed').value.trim();
+        const notes = document.getElementById('edit-session-notes').value.trim();
         const skipLog = getSkipLogValue('edit-session-skip-log-checkbox');
         
         if (!date || !description) return;
@@ -939,7 +959,7 @@ if (window.location.pathname.endsWith('sessions.html')) {
             await apiCall(`/api/sessions/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ date, description, hours, skipLog })
+                body: JSON.stringify({ date, description, hours, whoWasHelped, itemsContributed, notes, skipLog })
             });
             
             showMessage(`Session updated successfully!`, 'success');

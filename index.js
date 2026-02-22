@@ -446,7 +446,7 @@ app.get('/api/members', requireAuth, async (req, res) => {
 // POST /api/members - Add a new member
 app.post('/api/members', requireAuth, async (req, res) => {
   try {
-    const { name, yearLevel, skipLog } = req.body;
+    const { name, yearLevel, email, skipLog } = req.body;
     
     if (!name || name.trim() === '') {
       return res.status(400).json({ error: 'Name is required' });
@@ -460,6 +460,7 @@ app.post('/api/members', requireAuth, async (req, res) => {
       name: name.trim(),
       code,
       yearLevel: yearLevel || '',
+      email: email || '',
       manualHours: 0  // Initialize manual hours
     };
     
@@ -477,7 +478,7 @@ app.post('/api/members', requireAuth, async (req, res) => {
 app.put('/api/members/:code', requireAuth, async (req, res) => {
   try {
     const { code } = req.params;
-    const { name, newCode, yearLevel, skipLog } = req.body;
+    const { name, newCode, yearLevel, email, skipLog } = req.body;
     
     if (!name || name.trim() === '') {
       return res.status(400).json({ error: 'Name is required' });
@@ -509,6 +510,7 @@ app.put('/api/members/:code', requireAuth, async (req, res) => {
       name: name.trim(),
       code: updatedCode,
       yearLevel: yearLevel || '',
+      email: email !== undefined ? email : (data.members[memberIndex].email || ''),
       manualHours: manualHours
     };
     
@@ -624,7 +626,7 @@ app.get('/api/sessions', requireAuth, async (req, res) => {
 // POST /api/sessions - Create a new session
 app.post('/api/sessions', requireAuth, async (req, res) => {
   try {
-    const { date, description, hours, skipLog } = req.body;
+    const { date, description, hours, whoWasHelped, itemsContributed, notes, skipLog } = req.body;
     
     if (!date || !description) {
       return res.status(400).json({ error: 'Date and description are required' });
@@ -639,7 +641,10 @@ app.post('/api/sessions', requireAuth, async (req, res) => {
       description,
       hours: hours || 1, // Default to 1 hour if not specified
       attendees: [], // Will store member codes
-      individualHours: {} // Object to store individual hour overrides: { memberCode: hours }
+      individualHours: {}, // Object to store individual hour overrides: { memberCode: hours }
+      whoWasHelped: whoWasHelped || '',
+      itemsContributed: itemsContributed || '',
+      notes: notes || ''
     };
     
     data.sessions.push(newSession);
@@ -713,7 +718,7 @@ app.put('/api/sessions/:id/attendance', requireAuth, async (req, res) => {
 app.put('/api/sessions/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const { date, description, hours, skipLog } = req.body;
+    const { date, description, hours, whoWasHelped, itemsContributed, notes, skipLog } = req.body;
     
     if (!date || !description) {
       return res.status(400).json({ error: 'Date and description are required' });
@@ -731,6 +736,15 @@ app.put('/api/sessions/:id', requireAuth, async (req, res) => {
     data.sessions[sessionIndex].description = description;
     if (hours !== undefined) {
       data.sessions[sessionIndex].hours = hours;
+    }
+    if (whoWasHelped !== undefined) {
+      data.sessions[sessionIndex].whoWasHelped = whoWasHelped;
+    }
+    if (itemsContributed !== undefined) {
+      data.sessions[sessionIndex].itemsContributed = itemsContributed;
+    }
+    if (notes !== undefined) {
+      data.sessions[sessionIndex].notes = notes;
     }
     
     await writeData(data);
@@ -892,6 +906,15 @@ app.get('/api/export/csv/returns', requireAuth, async (req, res) => {
     // Sort by date ascending
     filteredSessions.sort((a, b) => new Date(a.date) - new Date(b.date));
 
+    // Escape a value for safe CSV output
+    const csvEscape = (val) => {
+      const str = String(val);
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return '"' + str.replace(/"/g, '""') + '"';
+      }
+      return str;
+    };
+
     let csv = 'DATE,EVENT,# STUDENT VOLUNTEERS,HOURS PER PERSON,#TOTAL HOURS,WHO WAS HELPED,#ITEMS CONTRIBUTED/DETAILS,NOTES\n';
 
     filteredSessions.forEach(session => {
@@ -908,7 +931,16 @@ app.get('/api/export/csv/returns', requireAuth, async (req, res) => {
         totalHours += indivHours;
       });
 
-      csv += `${formattedDate},${session.description.includes(',') ? '"' + session.description + '"' : session.description},${numVolunteers},${hoursPerPerson},${totalHours},,,\n`;
+      csv += [
+        formattedDate,
+        csvEscape(session.description),
+        numVolunteers,
+        hoursPerPerson,
+        totalHours,
+        csvEscape(session.whoWasHelped || ''),
+        csvEscape(session.itemsContributed || ''),
+        csvEscape(session.notes || '')
+      ].join(',') + '\n';
     });
 
     res.setHeader('Content-Type', 'text/csv');
@@ -940,23 +972,34 @@ app.get('/api/export/csv/roll', requireAuth, async (req, res) => {
       filteredSessions = filteredSessions.filter(s => new Date(s.date) <= new Date(endDate));
     }
 
+    // Escape a value for safe CSV output
+    const csvEscape = (val) => {
+      const str = String(val);
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return '"' + str.replace(/"/g, '""') + '"';
+      }
+      return str;
+    };
+
     let csv = 'Full Name,Year,Email,# Meeting Attended,#Projects Assisted\n';
 
     data.members.forEach(member => {
       // Both counts track session attendance; the data model does not distinguish meetings from projects
-      let meetingsAttended = 0;
-      let projectsAssisted = 0;
+      let sessionsAttended = 0;
 
       filteredSessions.forEach(session => {
         if (session.attendees.includes(member.code)) {
-          meetingsAttended++;
-          projectsAssisted++;
+          sessionsAttended++;
         }
       });
 
-      const name = member.name.includes(',') ? '"' + member.name + '"' : member.name;
-      // Email is left blank as the member data model does not store email addresses
-      csv += `${name},${member.yearLevel || ''},,${meetingsAttended},${projectsAssisted}\n`;
+      csv += [
+        csvEscape(member.name),
+        member.yearLevel || '',
+        csvEscape(member.email || ''),
+        sessionsAttended,
+        sessionsAttended
+      ].join(',') + '\n';
     });
 
     res.setHeader('Content-Type', 'text/csv');
