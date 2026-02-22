@@ -1337,12 +1337,14 @@ if (window.location.pathname.endsWith('export.html')) {
             showMessage('Please set a start or end date', 'error');
             return;
         }
+        const startD = startDate ? new Date(startDate) : null;
+        const endD = endDate ? new Date(endDate) : null;
         document.querySelectorAll('#rr-session-list .session-checkbox-item').forEach(item => {
             const cb = item.querySelector('input[type="checkbox"]');
-            const session = allSessions.find(s => s.id === cb.value);
+            const session = allSessions.find(s => String(s.id) === cb.value);
             if (session) {
                 const d = new Date(session.date);
-                const inRange = (!startDate || d >= new Date(startDate)) && (!endDate || d <= new Date(endDate));
+                const inRange = (!startD || d >= startD) && (!endD || d <= endD);
                 cb.checked = inRange;
             }
         });
