@@ -626,7 +626,7 @@ app.get('/api/sessions', requireAuth, async (req, res) => {
 // POST /api/sessions - Create a new session
 app.post('/api/sessions', requireAuth, async (req, res) => {
   try {
-    const { date, description, hours, customFields, skipLog } = req.body;
+    const { date, description, hours, sessionType, customFields, skipLog } = req.body;
     
     if (!date || !description) {
       return res.status(400).json({ error: 'Date and description are required' });
@@ -640,6 +640,7 @@ app.post('/api/sessions', requireAuth, async (req, res) => {
       date,
       description,
       hours: hours || 1, // Default to 1 hour if not specified
+      sessionType: sessionType || 'meeting', // 'meeting' or 'project'
       attendees: [], // Will store member codes
       individualHours: {}, // Object to store individual hour overrides: { memberCode: hours }
       customFields: (customFields && typeof customFields === 'object') ? customFields : {}
@@ -716,7 +717,7 @@ app.put('/api/sessions/:id/attendance', requireAuth, async (req, res) => {
 app.put('/api/sessions/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const { date, description, hours, customFields, skipLog } = req.body;
+    const { date, description, hours, sessionType, customFields, skipLog } = req.body;
     
     if (!date || !description) {
       return res.status(400).json({ error: 'Date and description are required' });
@@ -734,6 +735,9 @@ app.put('/api/sessions/:id', requireAuth, async (req, res) => {
     data.sessions[sessionIndex].description = description;
     if (hours !== undefined) {
       data.sessions[sessionIndex].hours = hours;
+    }
+    if (sessionType !== undefined) {
+      data.sessions[sessionIndex].sessionType = sessionType;
     }
     if (customFields !== undefined && typeof customFields === 'object') {
       data.sessions[sessionIndex].customFields = customFields;
@@ -982,12 +986,16 @@ app.get('/api/export/csv/roll', requireAuth, async (req, res) => {
     let csv = 'Full Name,Year,Email,# Meeting Attended,#Projects Assisted\n';
 
     data.members.forEach(member => {
-      // Both counts track session attendance; the data model does not distinguish meetings from projects
-      let sessionsAttended = 0;
+      let meetingsAttended = 0;
+      let projectsAssisted = 0;
 
       filteredSessions.forEach(session => {
         if (session.attendees.includes(member.code)) {
-          sessionsAttended++;
+          if (session.sessionType === 'project') {
+            projectsAssisted++;
+          } else {
+            meetingsAttended++;
+          }
         }
       });
 
@@ -995,8 +1003,8 @@ app.get('/api/export/csv/roll', requireAuth, async (req, res) => {
         csvEscape(member.name),
         member.yearLevel || '',
         csvEscape(member.email || ''),
-        sessionsAttended,
-        sessionsAttended
+        meetingsAttended,
+        projectsAssisted
       ].join(',') + '\n';
     });
 

@@ -84,6 +84,13 @@
                     <input type="number" id="edit-session-hours" min="1" max="24" step="1" value="1" required>
                 </div>
                 <div class="form-group">
+                    <label for="edit-session-type">Session Type:</label>
+                    <select id="edit-session-type" class="form-select">
+                        <option value="meeting">Meeting</option>
+                        <option value="project">Project</option>
+                    </select>
+                </div>
+                <div class="form-group">
                     <label>Custom Fields:</label>
                     <div id="edit-session-custom-fields">
                         <!-- Dynamic custom fields will be added here -->

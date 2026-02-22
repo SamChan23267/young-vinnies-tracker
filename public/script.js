@@ -179,9 +179,10 @@ if (window.location.pathname.endsWith('session.html')) {
             const defaultHours = session.hours || 1;
             
             // Display session details
+            const typeLabel = session.sessionType === 'project' ? 'Project' : 'Meeting';
             document.getElementById('session-title').textContent = session.description;
             document.getElementById('session-info').textContent = 
-                `Date: ${new Date(session.date).toLocaleDateString()} | ${session.attendees.length} attendee(s) | ${defaultHours} hour(s) default`;
+                `Date: ${new Date(session.date).toLocaleDateString()} | Type: ${typeLabel} | ${session.attendees.length} attendee(s) | ${defaultHours} hour(s) default`;
             
             // Display custom fields
             const cfDisplay = document.getElementById('session-custom-fields-display');
@@ -312,6 +313,7 @@ if (window.location.pathname.endsWith('session.html')) {
         document.getElementById('edit-session-date').value = currentSession.date;
         document.getElementById('edit-session-description').value = currentSession.description;
         document.getElementById('edit-session-hours').value = currentSession.hours || 1;
+        document.getElementById('edit-session-type').value = currentSession.sessionType || 'meeting';
 
         // Populate custom fields, with backward compatibility for legacy fields
         const cf = currentSession.customFields ? { ...currentSession.customFields } : {};
@@ -330,6 +332,7 @@ if (window.location.pathname.endsWith('session.html')) {
         const date = document.getElementById('edit-session-date').value;
         const description = document.getElementById('edit-session-description').value.trim();
         const hours = parseFloat(document.getElementById('edit-session-hours').value) || 1;
+        const sessionType = document.getElementById('edit-session-type').value;
         const customFields = getCustomFields('edit-session-custom-fields');
         const skipLog = getSkipLogValue('edit-session-skip-log-checkbox');
         
@@ -339,7 +342,7 @@ if (window.location.pathname.endsWith('session.html')) {
             await apiCall(`/api/sessions/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ date, description, hours, customFields, skipLog })
+                body: JSON.stringify({ date, description, hours, sessionType, customFields, skipLog })
             });
             
             showMessage('Session updated successfully!', 'success');
@@ -954,6 +957,7 @@ if (window.location.pathname.endsWith('sessions.html')) {
             const attendeeText = attendeeCount === 1 ? '1 attendee' : `${attendeeCount} attendees`;
             const hours = session.hours || 1;
             const totalHours = attendeeCount * hours;
+            const typeLabel = session.sessionType === 'project' ? 'Project' : 'Meeting';
             
             return `
                 <div class="session-item">
@@ -963,6 +967,7 @@ if (window.location.pathname.endsWith('sessions.html')) {
                     </div>
                     <h4>${session.description}</h4>
                     <p><strong>Date:</strong> ${new Date(session.date).toLocaleDateString()}</p>
+                    <p><strong>Type:</strong> ${typeLabel}</p>
                     <p><strong>Duration:</strong> ${hours} hour${hours !== 1 ? 's' : ''}</p>
                     <p><strong>Attendance:</strong> ${attendeeText} (${totalHours} total hours)</p>
                     ${session.attendees.length > 0 ? `
@@ -1015,10 +1020,12 @@ if (window.location.pathname.endsWith('sessions.html')) {
         const dateInput = document.getElementById('session-date');
         const descriptionInput = document.getElementById('session-description');
         const hoursInput = document.getElementById('session-hours');
+        const sessionTypeInput = document.getElementById('session-type');
         
         const date = dateInput.value;
         const description = descriptionInput.value.trim();
         const hours = parseFloat(hoursInput.value) || 1;
+        const sessionType = sessionTypeInput.value;
         const customFields = getCustomFields('session-custom-fields');
         
         if (!date || !description) return;
@@ -1029,13 +1036,14 @@ if (window.location.pathname.endsWith('sessions.html')) {
             const session = await apiCall('/api/sessions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ date, description, hours, customFields, skipLog })
+                body: JSON.stringify({ date, description, hours, sessionType, customFields, skipLog })
             });
             
             showMessage(`Session "${session.description}" created with ${session.hours} hour(s)!`, 'success');
             dateInput.value = '';
             descriptionInput.value = '';
             hoursInput.value = '1';
+            sessionTypeInput.value = 'meeting';
             document.getElementById('session-custom-fields').innerHTML = '';
             loadSessionsPage();
         } catch (error) {
@@ -1052,6 +1060,7 @@ if (window.location.pathname.endsWith('sessions.html')) {
         document.getElementById('edit-session-date').value = session.date;
         document.getElementById('edit-session-description').value = session.description;
         document.getElementById('edit-session-hours').value = session.hours || 1;
+        document.getElementById('edit-session-type').value = session.sessionType || 'meeting';
 
         // Populate custom fields, with backward compatibility for legacy fields
         const cf = session.customFields ? { ...session.customFields } : {};
@@ -1092,6 +1101,7 @@ if (window.location.pathname.endsWith('sessions.html')) {
         const date = document.getElementById('edit-session-date').value;
         const description = document.getElementById('edit-session-description').value.trim();
         const hours = parseFloat(document.getElementById('edit-session-hours').value) || 1;
+        const sessionType = document.getElementById('edit-session-type').value;
         const customFields = getCustomFields('edit-session-custom-fields');
         const skipLog = getSkipLogValue('edit-session-skip-log-checkbox');
         
@@ -1101,7 +1111,7 @@ if (window.location.pathname.endsWith('sessions.html')) {
             await apiCall(`/api/sessions/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ date, description, hours, customFields, skipLog })
+                body: JSON.stringify({ date, description, hours, sessionType, customFields, skipLog })
             });
             
             showMessage(`Session updated successfully!`, 'success');
