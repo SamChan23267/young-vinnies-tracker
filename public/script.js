@@ -1,5 +1,54 @@
 // Utility Functions
 
+// Custom field helpers for session forms
+function addCustomField(containerId, key, value) {
+    const container = document.getElementById(containerId);
+    const row = document.createElement('div');
+    row.className = 'custom-field-row';
+    row.style.cssText = 'display: flex; gap: 8px; margin-bottom: 6px; align-items: center;';
+    row.innerHTML = `
+        <input type="text" class="custom-field-key form-input" placeholder="Field name" value="${(key || '').replace(/"/g, '&quot;')}" style="flex: 1;">
+        <input type="text" class="custom-field-value form-input" placeholder="Value" value="${(value || '').replace(/"/g, '&quot;')}" style="flex: 1;">
+        <button type="button" class="btn btn-delete" onclick="this.parentElement.remove()" style="padding: 4px 10px;">✕</button>
+    `;
+    container.appendChild(row);
+}
+
+function addPresetField(containerId, presetKey) {
+    const container = document.getElementById(containerId);
+    const existing = container.querySelectorAll('.custom-field-key');
+    for (const input of existing) {
+        if (input.value === presetKey) {
+            input.closest('.custom-field-row').querySelector('.custom-field-value').focus();
+            return;
+        }
+    }
+    addCustomField(containerId, presetKey, '');
+}
+
+function getCustomFields(containerId) {
+    const container = document.getElementById(containerId);
+    const fields = {};
+    container.querySelectorAll('.custom-field-row').forEach(row => {
+        const key = row.querySelector('.custom-field-key').value.trim();
+        const value = row.querySelector('.custom-field-value').value.trim();
+        if (key) {
+            fields[key] = value;
+        }
+    });
+    return fields;
+}
+
+function populateCustomFields(containerId, customFields) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    if (customFields && typeof customFields === 'object') {
+        Object.entries(customFields).forEach(([key, value]) => {
+            addCustomField(containerId, key, value);
+        });
+    }
+}
+
 // Helper function to display role (hides sam role)
 function getDisplayRole(role) {
     if (role === 'sam') return 'Super Admin';
@@ -868,16 +917,11 @@ if (window.location.pathname.endsWith('sessions.html')) {
         const dateInput = document.getElementById('session-date');
         const descriptionInput = document.getElementById('session-description');
         const hoursInput = document.getElementById('session-hours');
-        const whoWasHelpedInput = document.getElementById('session-who-was-helped');
-        const itemsContributedInput = document.getElementById('session-items-contributed');
-        const notesInput = document.getElementById('session-notes');
         
         const date = dateInput.value;
         const description = descriptionInput.value.trim();
         const hours = parseFloat(hoursInput.value) || 1;
-        const whoWasHelped = whoWasHelpedInput.value.trim();
-        const itemsContributed = itemsContributedInput.value.trim();
-        const notes = notesInput.value.trim();
+        const customFields = getCustomFields('session-custom-fields');
         
         if (!date || !description) return;
         
@@ -887,16 +931,14 @@ if (window.location.pathname.endsWith('sessions.html')) {
             const session = await apiCall('/api/sessions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ date, description, hours, whoWasHelped, itemsContributed, notes, skipLog })
+                body: JSON.stringify({ date, description, hours, customFields, skipLog })
             });
             
             showMessage(`Session "${session.description}" created with ${session.hours} hour(s)!`, 'success');
             dateInput.value = '';
             descriptionInput.value = '';
             hoursInput.value = '1';
-            whoWasHelpedInput.value = '';
-            itemsContributedInput.value = '';
-            notesInput.value = '';
+            document.getElementById('session-custom-fields').innerHTML = '';
             loadSessionsPage();
         } catch (error) {
             console.error('Error creating session:', error);
@@ -912,9 +954,13 @@ if (window.location.pathname.endsWith('sessions.html')) {
         document.getElementById('edit-session-date').value = session.date;
         document.getElementById('edit-session-description').value = session.description;
         document.getElementById('edit-session-hours').value = session.hours || 1;
-        document.getElementById('edit-session-who-was-helped').value = session.whoWasHelped || '';
-        document.getElementById('edit-session-items-contributed').value = session.itemsContributed || '';
-        document.getElementById('edit-session-notes').value = session.notes || '';
+
+        // Populate custom fields, with backward compatibility for legacy fields
+        const cf = session.customFields ? { ...session.customFields } : {};
+        if (session.whoWasHelped && !cf['Who Was Helped']) cf['Who Was Helped'] = session.whoWasHelped;
+        if (session.itemsContributed && !cf['Items Contributed/Details']) cf['Items Contributed/Details'] = session.itemsContributed;
+        if (session.notes && !cf['Notes']) cf['Notes'] = session.notes;
+        populateCustomFields('edit-session-custom-fields', cf);
         
         document.getElementById('edit-session-modal').style.display = 'block';
     };
@@ -948,9 +994,7 @@ if (window.location.pathname.endsWith('sessions.html')) {
         const date = document.getElementById('edit-session-date').value;
         const description = document.getElementById('edit-session-description').value.trim();
         const hours = parseFloat(document.getElementById('edit-session-hours').value) || 1;
-        const whoWasHelped = document.getElementById('edit-session-who-was-helped').value.trim();
-        const itemsContributed = document.getElementById('edit-session-items-contributed').value.trim();
-        const notes = document.getElementById('edit-session-notes').value.trim();
+        const customFields = getCustomFields('edit-session-custom-fields');
         const skipLog = getSkipLogValue('edit-session-skip-log-checkbox');
         
         if (!date || !description) return;
@@ -959,7 +1003,7 @@ if (window.location.pathname.endsWith('sessions.html')) {
             await apiCall(`/api/sessions/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ date, description, hours, whoWasHelped, itemsContributed, notes, skipLog })
+                body: JSON.stringify({ date, description, hours, customFields, skipLog })
             });
             
             showMessage(`Session updated successfully!`, 'success');

@@ -48,16 +48,16 @@
                             <small style="color: #666; display: block; margin-top: 5px;">Default hours for this session (whole numbers only)</small>
                         </div>
                         <div class="form-group">
-                            <label for="session-who-was-helped">Who Was Helped:</label>
-                            <input type="text" id="session-who-was-helped" placeholder="e.g. Students, Families, Elderly">
-                        </div>
-                        <div class="form-group">
-                            <label for="session-items-contributed">Items Contributed/Details:</label>
-                            <input type="text" id="session-items-contributed" placeholder="e.g. 65 meals, $500">
-                        </div>
-                        <div class="form-group">
-                            <label for="session-notes">Notes:</label>
-                            <input type="text" id="session-notes" placeholder="Additional notes">
+                            <label>Custom Fields:</label>
+                            <div id="session-custom-fields">
+                                <!-- Dynamic custom fields will be added here -->
+                            </div>
+                            <div style="margin-top: 8px; display: flex; gap: 5px; flex-wrap: wrap;">
+                                <button type="button" class="btn btn-secondary" onclick="addCustomField('session-custom-fields')">+ Add Field</button>
+                                <button type="button" class="btn btn-info" onclick="addPresetField('session-custom-fields', 'Who Was Helped')">+ Who Was Helped</button>
+                                <button type="button" class="btn btn-info" onclick="addPresetField('session-custom-fields', 'Items Contributed/Details')">+ Items Contributed</button>
+                                <button type="button" class="btn btn-info" onclick="addPresetField('session-custom-fields', 'Notes')">+ Notes</button>
+                            </div>
                         </div>
                         <!-- Sam-only: Skip logging checkbox -->
                         <div class="form-group" id="create-session-skip-log" style="display: none;">
@@ -117,16 +117,16 @@
                     <input type="number" id="edit-session-hours" min="1" max="24" step="1" value="1" required>
                 </div>
                 <div class="form-group">
-                    <label for="edit-session-who-was-helped">Who Was Helped:</label>
-                    <input type="text" id="edit-session-who-was-helped" placeholder="e.g. Students, Families, Elderly">
-                </div>
-                <div class="form-group">
-                    <label for="edit-session-items-contributed">Items Contributed/Details:</label>
-                    <input type="text" id="edit-session-items-contributed" placeholder="e.g. 65 meals, $500">
-                </div>
-                <div class="form-group">
-                    <label for="edit-session-notes">Notes:</label>
-                    <input type="text" id="edit-session-notes" placeholder="Additional notes">
+                    <label>Custom Fields:</label>
+                    <div id="edit-session-custom-fields">
+                        <!-- Dynamic custom fields will be added here -->
+                    </div>
+                    <div style="margin-top: 8px; display: flex; gap: 5px; flex-wrap: wrap;">
+                        <button type="button" class="btn btn-secondary" onclick="addCustomField('edit-session-custom-fields')">+ Add Field</button>
+                        <button type="button" class="btn btn-info" onclick="addPresetField('edit-session-custom-fields', 'Who Was Helped')">+ Who Was Helped</button>
+                        <button type="button" class="btn btn-info" onclick="addPresetField('edit-session-custom-fields', 'Items Contributed/Details')">+ Items Contributed</button>
+                        <button type="button" class="btn btn-info" onclick="addPresetField('edit-session-custom-fields', 'Notes')">+ Notes</button>
+                    </div>
                 </div>
                 <!-- Sam-only: Skip logging checkbox -->
                 <div class="form-group" id="edit-session-skip-log" style="display: none;">

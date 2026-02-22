@@ -626,7 +626,7 @@ app.get('/api/sessions', requireAuth, async (req, res) => {
 // POST /api/sessions - Create a new session
 app.post('/api/sessions', requireAuth, async (req, res) => {
   try {
-    const { date, description, hours, whoWasHelped, itemsContributed, notes, skipLog } = req.body;
+    const { date, description, hours, customFields, skipLog } = req.body;
     
     if (!date || !description) {
       return res.status(400).json({ error: 'Date and description are required' });
@@ -642,9 +642,7 @@ app.post('/api/sessions', requireAuth, async (req, res) => {
       hours: hours || 1, // Default to 1 hour if not specified
       attendees: [], // Will store member codes
       individualHours: {}, // Object to store individual hour overrides: { memberCode: hours }
-      whoWasHelped: whoWasHelped || '',
-      itemsContributed: itemsContributed || '',
-      notes: notes || ''
+      customFields: (customFields && typeof customFields === 'object') ? customFields : {}
     };
     
     data.sessions.push(newSession);
@@ -718,7 +716,7 @@ app.put('/api/sessions/:id/attendance', requireAuth, async (req, res) => {
 app.put('/api/sessions/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const { date, description, hours, whoWasHelped, itemsContributed, notes, skipLog } = req.body;
+    const { date, description, hours, customFields, skipLog } = req.body;
     
     if (!date || !description) {
       return res.status(400).json({ error: 'Date and description are required' });
@@ -737,14 +735,8 @@ app.put('/api/sessions/:id', requireAuth, async (req, res) => {
     if (hours !== undefined) {
       data.sessions[sessionIndex].hours = hours;
     }
-    if (whoWasHelped !== undefined) {
-      data.sessions[sessionIndex].whoWasHelped = whoWasHelped;
-    }
-    if (itemsContributed !== undefined) {
-      data.sessions[sessionIndex].itemsContributed = itemsContributed;
-    }
-    if (notes !== undefined) {
-      data.sessions[sessionIndex].notes = notes;
+    if (customFields !== undefined && typeof customFields === 'object') {
+      data.sessions[sessionIndex].customFields = customFields;
     }
     
     await writeData(data);
@@ -931,15 +923,21 @@ app.get('/api/export/csv/returns', requireAuth, async (req, res) => {
         totalHours += indivHours;
       });
 
+      // Read from customFields, falling back to legacy fields for backward compatibility
+      const cf = session.customFields || {};
+      const whoWasHelped = cf['Who Was Helped'] || session.whoWasHelped || '';
+      const itemsContributed = cf['Items Contributed/Details'] || session.itemsContributed || '';
+      const sessionNotes = cf['Notes'] || session.notes || '';
+
       csv += [
         formattedDate,
         csvEscape(session.description),
         numVolunteers,
         hoursPerPerson,
         totalHours,
-        csvEscape(session.whoWasHelped || ''),
-        csvEscape(session.itemsContributed || ''),
-        csvEscape(session.notes || '')
+        csvEscape(whoWasHelped),
+        csvEscape(itemsContributed),
+        csvEscape(sessionNotes)
       ].join(',') + '\n';
     });
 
