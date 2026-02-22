@@ -186,25 +186,27 @@ if (window.location.pathname.endsWith('session.html')) {
             
             // Display custom fields
             const cfDisplay = document.getElementById('session-custom-fields-display');
-            const cf = session.customFields || {};
-            // Also include legacy fields for backward compatibility
-            if (session.whoWasHelped && !cf['Who Was Helped']) cf['Who Was Helped'] = session.whoWasHelped;
-            if (session.itemsContributed && !cf['Items Contributed/Details']) cf['Items Contributed/Details'] = session.itemsContributed;
-            if (session.notes && !cf['Notes']) cf['Notes'] = session.notes;
-            
-            const cfEntries = Object.entries(cf);
-            if (cfEntries.length > 0) {
-                cfDisplay.innerHTML = '';
-                cfEntries.forEach(([key, value]) => {
-                    const p = document.createElement('p');
-                    const strong = document.createElement('strong');
-                    strong.textContent = key + ':';
-                    p.appendChild(strong);
-                    p.appendChild(document.createTextNode(' ' + (value || 'Not set')));
-                    cfDisplay.appendChild(p);
-                });
-            } else {
-                cfDisplay.innerHTML = '';
+            if (cfDisplay) {
+                const cf = session.customFields || {};
+                // Also include legacy fields for backward compatibility
+                if (session.whoWasHelped && !cf['Who Was Helped']) cf['Who Was Helped'] = session.whoWasHelped;
+                if (session.itemsContributed && !cf['Items Contributed/Details']) cf['Items Contributed/Details'] = session.itemsContributed;
+                if (session.notes && !cf['Notes']) cf['Notes'] = session.notes;
+                
+                const cfEntries = Object.entries(cf);
+                if (cfEntries.length > 0) {
+                    cfDisplay.innerHTML = '';
+                    cfEntries.forEach(([key, value]) => {
+                        const p = document.createElement('p');
+                        const strong = document.createElement('strong');
+                        strong.textContent = key + ':';
+                        p.appendChild(strong);
+                        p.appendChild(document.createTextNode(' ' + (value || 'Not set')));
+                        cfDisplay.appendChild(p);
+                    });
+                } else {
+                    cfDisplay.innerHTML = '';
+                }
             }
             
             // Display attendance checkboxes with hour inputs
@@ -750,9 +752,9 @@ if (window.location.pathname.endsWith('members.html')) {
         
         if (members.length === 0) {
             if (allMembers.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><p>No members yet. Add your first member above!</p></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><p>No members yet. Add your first member above!</p></td></tr>';
             } else {
-                tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><p>No members match the current filters.</p></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><p>No members match the current filters.</p></td></tr>';
             }
             return;
         }
@@ -776,6 +778,7 @@ if (window.location.pathname.endsWith('members.html')) {
                 <td>${member.name}</td>
                 <td><strong>${member.code}</strong></td>
                 <td>${member.yearLevel || '-'}</td>
+                <td>${member.email || '-'}</td>
                 <td>${totalHours} hrs</td>
                 <td>
                     <div class="action-buttons">
