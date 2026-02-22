@@ -183,6 +183,25 @@ if (window.location.pathname.endsWith('session.html')) {
             document.getElementById('session-info').textContent = 
                 `Date: ${new Date(session.date).toLocaleDateString()} | ${session.attendees.length} attendee(s) | ${defaultHours} hour(s) default`;
             
+            // Display custom fields
+            const cfDisplay = document.getElementById('session-custom-fields-display');
+            const cf = session.customFields || {};
+            // Also include legacy fields for backward compatibility
+            if (session.whoWasHelped && !cf['Who Was Helped']) cf['Who Was Helped'] = session.whoWasHelped;
+            if (session.itemsContributed && !cf['Items Contributed/Details']) cf['Items Contributed/Details'] = session.itemsContributed;
+            if (session.notes && !cf['Notes']) cf['Notes'] = session.notes;
+            
+            const cfEntries = Object.entries(cf);
+            if (cfEntries.length > 0) {
+                cfDisplay.innerHTML = cfEntries.map(([key, value]) => {
+                    const safeKey = key.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    const safeValue = (value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    return `<p><strong>${safeKey}:</strong> ${safeValue || '<em>Not set</em>'}</p>`;
+                }).join('');
+            } else {
+                cfDisplay.innerHTML = '';
+            }
+            
             // Display attendance checkboxes with hour inputs
             const attendanceList = document.getElementById('attendance-list');
             
@@ -280,6 +299,61 @@ if (window.location.pathname.endsWith('session.html')) {
 
     // Add logout button handler
     document.getElementById('logout-btn')?.addEventListener('click', logout);
+
+    // Edit session button - open modal
+    document.getElementById('edit-session-btn')?.addEventListener('click', () => {
+        if (!currentSession) return;
+        
+        document.getElementById('edit-session-id').value = currentSession.id;
+        document.getElementById('edit-session-date').value = currentSession.date;
+        document.getElementById('edit-session-description').value = currentSession.description;
+        document.getElementById('edit-session-hours').value = currentSession.hours || 1;
+
+        // Populate custom fields, with backward compatibility for legacy fields
+        const cf = currentSession.customFields ? { ...currentSession.customFields } : {};
+        if (currentSession.whoWasHelped && !cf['Who Was Helped']) cf['Who Was Helped'] = currentSession.whoWasHelped;
+        if (currentSession.itemsContributed && !cf['Items Contributed/Details']) cf['Items Contributed/Details'] = currentSession.itemsContributed;
+        if (currentSession.notes && !cf['Notes']) cf['Notes'] = currentSession.notes;
+        populateCustomFields('edit-session-custom-fields', cf);
+        
+        document.getElementById('edit-session-modal').style.display = 'block';
+    });
+
+    // Edit session form submission
+    document.getElementById('edit-session-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('edit-session-id').value;
+        const date = document.getElementById('edit-session-date').value;
+        const description = document.getElementById('edit-session-description').value.trim();
+        const hours = parseFloat(document.getElementById('edit-session-hours').value) || 1;
+        const customFields = getCustomFields('edit-session-custom-fields');
+        const skipLog = getSkipLogValue('edit-session-skip-log-checkbox');
+        
+        if (!date || !description) return;
+        
+        try {
+            await apiCall(`/api/sessions/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date, description, hours, customFields, skipLog })
+            });
+            
+            showMessage('Session updated successfully!', 'success');
+            document.getElementById('edit-session-modal').style.display = 'none';
+            loadSessionDetails();
+        } catch (error) {
+            console.error('Error updating session:', error);
+        }
+    });
+
+    // Modal close handlers
+    document.querySelector('#edit-session-modal .modal-close')?.addEventListener('click', () => {
+        document.getElementById('edit-session-modal').style.display = 'none';
+    });
+    
+    document.querySelector('#edit-session-modal .modal-cancel')?.addEventListener('click', () => {
+        document.getElementById('edit-session-modal').style.display = 'none';
+    });
 
     // Initialize session page
     loadSessionDetails();
