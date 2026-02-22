@@ -1,5 +1,8 @@
 // Utility Functions
 
+// Safe element value setter - prevents crash if element doesn't exist
+function setVal(elId, val) { const el = document.getElementById(elId); if (el) el.value = val; }
+
 // Custom field helpers for session forms
 function addCustomField(containerId, key, value) {
     const container = document.getElementById(containerId);
@@ -311,7 +314,6 @@ if (window.location.pathname.endsWith('session.html')) {
     document.getElementById('edit-session-btn')?.addEventListener('click', () => {
         if (!currentSession) return;
         
-        const setVal = (elId, val) => { const el = document.getElementById(elId); if (el) el.value = val; };
         setVal('edit-session-id', currentSession.id);
         setVal('edit-session-date', currentSession.date);
         setVal('edit-session-description', currentSession.description);
@@ -1061,7 +1063,6 @@ if (window.location.pathname.endsWith('sessions.html')) {
         const session = allSessions.find(s => s.id === id);
         if (!session) return;
         
-        const setVal = (elId, val) => { const el = document.getElementById(elId); if (el) el.value = val; };
         setVal('edit-session-id', id);
         setVal('edit-session-date', session.date);
         setVal('edit-session-description', session.description);
