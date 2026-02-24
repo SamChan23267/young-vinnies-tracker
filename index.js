@@ -23,11 +23,11 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://vercel.live"],
-      scriptSrcElem: ["'self'", "'unsafe-inline'", "https://vercel.live"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://vercel.live", "https://va.vercel-scripts.com"],
+      scriptSrcElem: ["'self'", "'unsafe-inline'", "https://vercel.live", "https://va.vercel-scripts.com"],
       scriptSrcAttr: ["'unsafe-inline'"], // Allow inline event handlers (onclick, etc.)
       imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "https://vercel.live", "wss://ws-us3.pusher.com", "wss://vercel.live"],
+      connectSrc: ["'self'", "https://vercel.live", "wss://ws-us3.pusher.com", "wss://vercel.live", "https://va.vercel-scripts.com", "https://*.vercel-insights.com"],
     },
   },
 }));
