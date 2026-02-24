@@ -27,7 +27,7 @@ app.use(helmet({
       scriptSrcElem: ["'self'", "'unsafe-inline'", "https://vercel.live", "https://va.vercel-scripts.com"],
       scriptSrcAttr: ["'unsafe-inline'"], // Allow inline event handlers (onclick, etc.)
       imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "https://vercel.live", "wss://ws-us3.pusher.com", "wss://vercel.live", "https://vitals.vercel-insights.com"],
+      connectSrc: ["'self'", "https://vercel.live", "wss://ws-us3.pusher.com", "wss://vercel.live", "https://vitals.vercel-insights.com", "https://*.vercel-insights.com"],
     },
   },
 }));

@@ -17,6 +17,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@vercel/analytics": "^1.6.1",
     "compression": "^1.7.4",
     "cookie-session": "^2.1.1",
     "dotenv": "^16.0.3",
