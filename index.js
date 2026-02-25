@@ -571,12 +571,12 @@ app.delete('/api/members/:code', requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/members/:code/hours - Manually adjust member hours (sam only)
+// POST /api/members/:code/hours - Manually adjust member hours (super admin & sam)
 app.post('/api/members/:code/hours', requireAuth, async (req, res) => {
   try {
-    // Only sam role can manually adjust hours
-    if (req.session.role !== 'sam') {
-      return res.status(403).json({ error: 'Only sam can manually adjust hours' });
+    // Only super_admin or sam role can manually adjust hours
+    if (req.session.role !== 'sam' && req.session.role !== 'super_admin') {
+      return res.status(403).json({ error: 'Only super admins can manually adjust hours' });
     }
     
     const { code } = req.params;
@@ -617,6 +617,45 @@ app.post('/api/members/:code/hours', requireAuth, async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to adjust hours' });
+  }
+});
+
+// POST /api/members/year-levels/adjust - Bulk adjust all member year levels (super admin & sam)
+app.post('/api/members/year-levels/adjust', requireSuperAdmin, async (req, res) => {
+  try {
+    const { delta } = req.body;
+    
+    if (delta !== 1 && delta !== -1) {
+      return res.status(400).json({ error: 'Delta must be 1 or -1' });
+    }
+    
+    const data = await readData();
+    let adjustedCount = 0;
+    
+    data.members.forEach(member => {
+      if (member.yearLevel) {
+        const currentYear = parseInt(member.yearLevel);
+        if (!isNaN(currentYear)) {
+          member.yearLevel = String(currentYear + delta);
+          adjustedCount++;
+        }
+      }
+    });
+    
+    await writeData(data);
+    await logAudit('ADJUST_YEAR_LEVELS', {
+      delta: delta,
+      adjustedCount: adjustedCount,
+      direction: delta > 0 ? 'incremented' : 'decremented'
+    }, req.session.username);
+    
+    res.json({
+      success: true,
+      adjustedCount: adjustedCount,
+      delta: delta
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to adjust year levels' });
   }
 });
 
@@ -1033,7 +1072,6 @@ app.get('/api/audit-log', requireSuperAdmin, async (req, res) => {
       const filtered = allLogs.filter(log => 
         log.action !== 'MANUAL_HOURS' && 
         log.action !== 'DELETE_LOG' &&
-        log.action !== 'ADJUST_HOURS' &&
         !log.hidden  // Also filter out hidden logs
       );
       return res.json(filtered);

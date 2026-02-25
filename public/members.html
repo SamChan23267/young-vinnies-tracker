@@ -101,6 +101,16 @@
                     </div>
                 </div>
 
+                <!-- Super Admin: Year Level Bulk Adjustment -->
+                <div id="year-level-adjust-section" style="display: none; margin: 20px 0; padding: 15px; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px;">
+                    <h3 style="margin: 0 0 10px 0;">📅 Bulk Year Level Adjustment</h3>
+                    <p style="margin: 0 0 10px 0; font-size: 0.9em; color: #92400e;">Increment or decrement year levels for all members (e.g., for a new school year).</p>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-primary" onclick="adjustAllYearLevels(1)">⬆️ Add 1 to All Year Levels</button>
+                        <button class="btn btn-secondary" onclick="adjustAllYearLevels(-1)">⬇️ Subtract 1 from All Year Levels</button>
+                    </div>
+                </div>
+
                 <div class="table-section">
                     <h3>Current Members (<span id="member-count">0</span><span id="member-count-total"></span>)</h3>
                     <div id="members-table-container">
@@ -188,7 +198,7 @@
                     <label for="adjust-hours-reason">Reason:</label>
                     <textarea id="adjust-hours-reason" rows="3" placeholder="Why are you adjusting hours?"></textarea>
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="adjust-hours-skip-log-group" style="display: none;">
                     <label class="checkbox-label">
                         <input type="checkbox" id="adjust-hours-skip-log-checkbox">
                         🔒 Don't log this action (Sam privilege)
