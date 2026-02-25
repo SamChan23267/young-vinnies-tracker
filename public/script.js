@@ -788,7 +788,7 @@ if (window.location.pathname.endsWith('members.html')) {
                     <div class="action-buttons">
                         <button class="btn btn-edit" onclick="editMember('${member.code}')">Edit</button>
                         <button class="btn btn-delete" onclick="deleteMember('${member.code}', '${member.name}')">Delete</button>
-                        ${isSamUser ? `<button class="btn btn-primary" style="background: #10b981;" onclick="showAdjustHoursModal('${member.code}', '${member.name}')">⏱️ Adjust Hours</button>` : ''}
+                        ${isSuperAdminUser ? `<button class="btn btn-primary" style="background: #10b981;" onclick="showAdjustHoursModal('${member.code}', '${member.name}')">⏱️ Adjust Hours</button>` : ''}
                     </div>
                 </td>
             </tr>
@@ -1426,6 +1426,8 @@ if (window.location.pathname.endsWith('settings.html')) {
 
 // Global variable to track if current user is sam
 let isSamUser = false;
+// Global variable to track if current user is super admin (includes sam)
+let isSuperAdminUser = false;
 
 // Initialize Sam-specific UI elements
 async function initSamFeatures() {
@@ -1433,6 +1435,7 @@ async function initSamFeatures() {
         const response = await fetch('/api/check-auth');
         const data = await response.json();
         isSamUser = data.role === 'sam';
+        isSuperAdminUser = data.role === 'sam' || data.role === 'super_admin';
         
         if (isSamUser) {
             // Show all "skip logging" checkboxes
@@ -1452,6 +1455,12 @@ async function initSamFeatures() {
             const auditHeader = document.getElementById('audit-log-actions-header');
             if (auditHeader) auditHeader.style.display = 'table-cell';
         }
+
+        if (isSuperAdminUser) {
+            // Show year level adjustment buttons
+            const yearLevelAdjust = document.getElementById('year-level-adjust-section');
+            if (yearLevelAdjust) yearLevelAdjust.style.display = 'block';
+        }
     } catch (error) {
         console.error('Error initializing Sam features:', error);
     }
@@ -1465,6 +1474,9 @@ function showAdjustHoursModal(memberCode, memberName) {
     document.getElementById('adjust-hours-amount').value = '';
     document.getElementById('adjust-hours-reason').value = '';
     document.getElementById('adjust-hours-skip-log-checkbox').checked = false;
+    // Only show skip-log option for sam users
+    const skipLogGroup = document.getElementById('adjust-hours-skip-log-group');
+    if (skipLogGroup) skipLogGroup.style.display = isSamUser ? 'block' : 'none';
     modal.style.display = 'flex';
 }
 
@@ -1498,6 +1510,30 @@ async function handleAdjustHours(event) {
         }
     } catch (error) {
         console.error('Error adjusting hours:', error);
+    }
+}
+
+// Year Level Bulk Adjustment Functions
+async function adjustAllYearLevels(delta) {
+    const direction = delta > 0 ? 'increment' : 'decrement';
+    const confirmed = confirm(`Are you sure you want to ${direction} ALL member year levels by 1?\n\nThis will affect every member with a numeric year level.`);
+    if (!confirmed) return;
+    
+    try {
+        const result = await apiCall('/api/members/year-levels/adjust', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ delta })
+        });
+        
+        showMessage(`Year levels ${direction}ed successfully! ${result.adjustedCount} member(s) updated.`, 'success');
+        
+        // Reload members if we're on the members page
+        if (typeof loadMembersPage === 'function') {
+            loadMembersPage();
+        }
+    } catch (error) {
+        console.error('Error adjusting year levels:', error);
     }
 }
 
