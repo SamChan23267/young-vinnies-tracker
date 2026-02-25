@@ -738,6 +738,8 @@ if (window.location.pathname.endsWith('members.html')) {
             console.error('Error loading members:', error);
         }
     }
+    // Expose to global scope so adjust-hours and year-level functions can trigger a reload
+    window.loadMembersPage = loadMembersPage;
     
     // Display members
     function displayMembers(members) {
@@ -1505,8 +1507,8 @@ async function handleAdjustHours(event) {
         document.getElementById('adjust-hours-modal').style.display = 'none';
         
         // Reload members if we're on the members page
-        if (typeof loadMembersPage === 'function') {
-            loadMembersPage();
+        if (typeof window.loadMembersPage === 'function') {
+            window.loadMembersPage();
         }
     } catch (error) {
         console.error('Error adjusting hours:', error);
@@ -1529,8 +1531,8 @@ async function adjustAllYearLevels(delta) {
         showMessage(`Year levels ${direction}ed successfully! ${result.adjustedCount} member(s) updated.`, 'success');
         
         // Reload members if we're on the members page
-        if (typeof loadMembersPage === 'function') {
-            loadMembersPage();
+        if (typeof window.loadMembersPage === 'function') {
+            window.loadMembersPage();
         }
     } catch (error) {
         console.error('Error adjusting year levels:', error);
