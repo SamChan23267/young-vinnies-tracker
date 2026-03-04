@@ -151,6 +151,8 @@ if (window.location.pathname.endsWith('session.html')) {
     const sessionId = urlParams.get('id');
     
     let currentSession = null;
+    let currentMembers = [];
+    let currentMemberTotalHours = {};
     
     if (!sessionId) {
         showMessage('No session ID provided', 'error');
@@ -241,9 +243,6 @@ if (window.location.pathname.endsWith('session.html')) {
             showMessage('Failed to load session details', 'error');
         }
     }
-
-    let currentMembers = [];
-    let currentMemberTotalHours = {};
 
     function renderAttendanceList(members, session, defaultHours, memberTotalHours) {
         // Display attendance checkboxes with hour inputs
@@ -1357,7 +1356,7 @@ if (window.location.pathname.endsWith('export.html')) {
         const orientation = document.getElementById('orientation').value;
 
         const getMemberDisplay = (memberCode) => {
-            const member = allMembers.find(m => m.code === memberCode);
+            const member = exportMembers.find(m => m.code === memberCode);
             if (!member) return memberCode;
             if (memberDisplay === 'code') return memberCode;
             if (memberDisplay === 'name') return member.name;
@@ -1391,10 +1390,10 @@ if (window.location.pathname.endsWith('export.html')) {
     }
 
     // Load members for clipboard generation
-    let allMembers = [];
+    let exportMembers = [];
     async function loadMembersForExport() {
         try {
-            allMembers = await fetch('/api/members').then(res => res.json());
+            exportMembers = await fetch('/api/members').then(res => res.json());
         } catch (e) {
             console.error('Error loading members for export:', e);
         }
@@ -1631,6 +1630,11 @@ async function initSamFeatures() {
             // Show year level adjustment buttons
             const yearLevelAdjust = document.getElementById('year-level-adjust-section');
             if (yearLevelAdjust) yearLevelAdjust.style.display = 'block';
+        }
+
+        // Re-render members table if already loaded (fixes race condition with loadMembersPage)
+        if (typeof window.loadMembersPage === 'function') {
+            window.loadMembersPage();
         }
     } catch (error) {
         console.error('Error initializing Sam features:', error);

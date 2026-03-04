@@ -1,1 +1,75 @@
-[]
+[
+  {
+    "timestamp": "2026-03-04T10:28:09.888Z",
+    "username": "admin",
+    "action": "ADD_MEMBER",
+    "data": {
+      "name": "Alice Smith",
+      "code": "ALICES",
+      "yearLevel": "",
+      "email": "",
+      "manualHours": 0
+    }
+  },
+  {
+    "timestamp": "2026-03-04T10:28:09.895Z",
+    "username": "admin",
+    "action": "ADD_MEMBER",
+    "data": {
+      "name": "Bob Jones",
+      "code": "BOBJ",
+      "yearLevel": "",
+      "email": "",
+      "manualHours": 0
+    }
+  },
+  {
+    "timestamp": "2026-03-04T10:28:09.903Z",
+    "username": "admin",
+    "action": "ADD_MEMBER",
+    "data": {
+      "name": "Charlie Brown",
+      "code": "CHARLB",
+      "yearLevel": "",
+      "email": "",
+      "manualHours": 0
+    }
+  },
+  {
+    "timestamp": "2026-03-04T10:28:09.910Z",
+    "username": "admin",
+    "action": "CREATE_SESSION",
+    "data": {
+      "id": "1",
+      "date": "2026-03-01",
+      "description": "Soup Kitchen",
+      "hours": 2,
+      "sessionType": "",
+      "attendees": [
+        "ALICES",
+        "BOBJ"
+      ],
+      "individualHours": {
+        "ALICES": 3,
+        "BOBJ": 2
+      },
+      "customFields": {}
+    }
+  },
+  {
+    "timestamp": "2026-03-04T10:28:09.917Z",
+    "username": "admin",
+    "action": "UPDATE_ATTENDANCE",
+    "data": {
+      "sessionId": "1",
+      "attendees": [
+        "ALICES",
+        "BOBJ"
+      ],
+      "individualHours": {
+        "ALICES": 3,
+        "BOBJ": 2
+      }
+    }
+  }
+]

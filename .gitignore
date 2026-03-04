@@ -7,3 +7,4 @@ logs/
 *.log
 .env
 .vercel
+node_modules/
