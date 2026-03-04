@@ -80,6 +80,11 @@ app.use((req, res, next) => {
     return next();
   }
   
+  // Redirect unauthenticated root visitors to public hours page
+  if (req.path === '/' && !req.session.authenticated) {
+    return res.redirect('/public-hours.html');
+  }
+
   // For main pages, check authentication
   const protectedPages = ['/', '/index.html', '/session.html', '/audit-log.html', '/members.html', '/sessions.html', '/export.html', '/settings.html', '/admin-management.html'];
   if (protectedPages.includes(req.path)) {
