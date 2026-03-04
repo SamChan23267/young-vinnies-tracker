@@ -153,6 +153,7 @@ if (window.location.pathname.endsWith('session.html')) {
     let currentSession = null;
     let currentMembers = [];
     let currentMemberTotalHours = {};
+    let pendingAttendanceState = null; // Preserves unsaved checkbox state across re-renders
     
     if (!sessionId) {
         showMessage('No session ID provided', 'error');
@@ -254,10 +255,15 @@ if (window.location.pathname.endsWith('session.html')) {
         }
         
         attendanceList.innerHTML = members.map(member => {
-            const isAttending = session.attendees.includes(member.code);
-            const individualHours = session.individualHours && session.individualHours[member.code] 
-                ? session.individualHours[member.code] 
-                : defaultHours;
+            const savedAttending = session.attendees.includes(member.code);
+            const isAttending = pendingAttendanceState
+                ? (pendingAttendanceState[member.code]?.checked ?? savedAttending)
+                : savedAttending;
+            const individualHours = pendingAttendanceState && pendingAttendanceState[member.code]
+                ? pendingAttendanceState[member.code].hours
+                : (session.individualHours && session.individualHours[member.code] 
+                    ? session.individualHours[member.code] 
+                    : defaultHours);
             const totalHrs = memberTotalHours[member.code] || 0;
             
             return `
@@ -287,6 +293,7 @@ if (window.location.pathname.endsWith('session.html')) {
                 </div>
             `;
         }).join('');
+        pendingAttendanceState = null;
     }
 
     // Attendance search filter
@@ -324,6 +331,16 @@ if (window.location.pathname.endsWith('session.html')) {
             nameInput.value = '';
             yearInput.value = '';
             document.getElementById('add-member-inline').style.display = 'none';
+            // Capture current unsaved attendance state before re-rendering
+            pendingAttendanceState = {};
+            document.querySelectorAll('#attendance-list input[type="checkbox"]').forEach(cb => {
+                const code = cb.value;
+                const hoursInput = document.getElementById(`hours-${code}`);
+                pendingAttendanceState[code] = {
+                    checked: cb.checked,
+                    hours: hoursInput ? (parseFloat(hoursInput.value) || (currentSession?.hours || 1)) : (currentSession?.hours || 1)
+                };
+            });
             loadSessionDetails();
         } catch (error) {
             console.error('Error adding member:', error);
