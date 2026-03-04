@@ -42,6 +42,30 @@
 
                 <div class="attendance-section">
                     <h3>Mark Attendance</h3>
+                    <div class="search-section" style="margin-bottom: 15px;">
+                        <input type="text" id="attendance-search" class="search-input" placeholder="🔍 Search members by name...">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <button type="button" id="add-member-attendance-btn" class="btn btn-success" style="width: auto;">➕ Add New Member</button>
+                    </div>
+                    <!-- Add Member Inline Form -->
+                    <div id="add-member-inline" style="display: none; margin-bottom: 20px; padding: 15px; background: #f0f8ff; border-radius: 8px; border: 2px solid #667eea;">
+                        <h4 style="margin-bottom: 10px; color: #667eea;">➕ Add New Member</h4>
+                        <form id="add-member-inline-form">
+                            <div class="form-group">
+                                <label for="inline-member-name">Name:</label>
+                                <input type="text" id="inline-member-name" required placeholder="Enter member name">
+                            </div>
+                            <div class="form-group">
+                                <label for="inline-member-year">Year Level:</label>
+                                <input type="number" id="inline-member-year" placeholder="Enter year level" min="1" step="1">
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <button type="submit" class="btn btn-primary" style="width: auto;">Add Member</button>
+                                <button type="button" id="cancel-add-member-inline" class="btn btn-secondary" style="width: auto;">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
                     <form id="attendance-form">
                         <div id="attendance-list">
                             <!-- Attendance checkboxes will be loaded here -->

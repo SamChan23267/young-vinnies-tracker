@@ -160,9 +160,10 @@ if (window.location.pathname.endsWith('session.html')) {
     // Load session details and attendance
     async function loadSessionDetails() {
         try {
-            const [sessionRes, membersRes] = await Promise.all([
+            const [sessionRes, membersRes, allSessionsRes] = await Promise.all([
                 fetch(`/api/sessions/${sessionId}`),
-                fetch('/api/members')
+                fetch('/api/members'),
+                fetch('/api/sessions')
             ]);
 
             if (!sessionRes.ok) {
@@ -173,9 +174,10 @@ if (window.location.pathname.endsWith('session.html')) {
                 throw new Error(errBody.error || `Session request failed with status ${sessionRes.status}`);
             }
 
-            const [session, members] = await Promise.all([
+            const [session, members, allSessions] = await Promise.all([
                 sessionRes.json(),
-                membersRes.json()
+                membersRes.json(),
+                allSessionsRes.json()
             ]);
             
             currentSession = session;
@@ -212,53 +214,122 @@ if (window.location.pathname.endsWith('session.html')) {
                 }
             }
             
-            // Display attendance checkboxes with hour inputs
-            const attendanceList = document.getElementById('attendance-list');
-            
-            if (members.length === 0) {
-                attendanceList.innerHTML = '<div class="empty-state"><p>No members available. Add members first!</p></div>';
-                return;
-            }
-            
-            attendanceList.innerHTML = members.map(member => {
-                const isAttending = session.attendees.includes(member.code);
-                const individualHours = session.individualHours && session.individualHours[member.code] 
-                    ? session.individualHours[member.code] 
-                    : defaultHours;
-                
-                return `
-                    <div class="attendance-item">
-                        <input 
-                            type="checkbox" 
-                            id="member-${member.code}" 
-                            value="${member.code}"
-                            ${isAttending ? 'checked' : ''}
-                            onchange="toggleHoursInput('${member.code}')"
-                        >
-                        <label for="member-${member.code}">
-                            ${member.name} (${member.code})
-                        </label>
-                        <div class="hours-input" id="hours-input-${member.code}" style="display: ${isAttending ? 'inline-block' : 'none'}; margin-left: 15px;">
-                            <label for="hours-${member.code}" style="font-size: 0.9em;">Hours:</label>
-                            <input 
-                                type="number" 
-                                id="hours-${member.code}" 
-                                min="1" 
-                                max="24" 
-                                step="1" 
-                                value="${individualHours}"
-                                style="width: 70px; padding: 3px; border: 1px solid #ddd; border-radius: 4px;"
-                            >
-                        </div>
-                    </div>
-                `;
-            }).join('');
+            // Calculate total hours per member across all sessions
+            const memberTotalHours = {};
+            allSessions.forEach(s => {
+                const sHours = s.hours || 1;
+                s.attendees.forEach(code => {
+                    const ih = (s.individualHours && s.individualHours[code]) ? s.individualHours[code] : sHours;
+                    memberTotalHours[code] = (memberTotalHours[code] || 0) + ih;
+                });
+            });
+            members.forEach(m => {
+                memberTotalHours[m.code] = (memberTotalHours[m.code] || 0) + (m.manualHours || 0);
+            });
+
+            // Sort members by total hours descending
+            members.sort((a, b) => (memberTotalHours[b.code] || 0) - (memberTotalHours[a.code] || 0));
+
+            // Store for search filtering
+            currentMembers = members;
+            currentMemberTotalHours = memberTotalHours;
+
+            renderAttendanceList(members, session, defaultHours, memberTotalHours);
             
         } catch (error) {
             console.error('Error loading session details:', error);
             showMessage('Failed to load session details', 'error');
         }
     }
+
+    let currentMembers = [];
+    let currentMemberTotalHours = {};
+
+    function renderAttendanceList(members, session, defaultHours, memberTotalHours) {
+        // Display attendance checkboxes with hour inputs
+        const attendanceList = document.getElementById('attendance-list');
+        
+        if (members.length === 0) {
+            attendanceList.innerHTML = '<div class="empty-state"><p>No members available. Add members first!</p></div>';
+            return;
+        }
+        
+        attendanceList.innerHTML = members.map(member => {
+            const isAttending = session.attendees.includes(member.code);
+            const individualHours = session.individualHours && session.individualHours[member.code] 
+                ? session.individualHours[member.code] 
+                : defaultHours;
+            const totalHrs = memberTotalHours[member.code] || 0;
+            
+            return `
+                <div class="attendance-item" data-name="${member.name.toLowerCase()}" data-code="${member.code.toLowerCase()}">
+                    <input 
+                        type="checkbox" 
+                        id="member-${member.code}" 
+                        value="${member.code}"
+                        ${isAttending ? 'checked' : ''}
+                        onchange="toggleHoursInput('${member.code}')"
+                    >
+                    <label for="member-${member.code}">
+                        ${member.name} (${member.code}) <span style="color: #888; font-size: 0.85em;">[${totalHrs} hrs total]</span>
+                    </label>
+                    <div class="hours-input" id="hours-input-${member.code}" style="display: ${isAttending ? 'inline-block' : 'none'}; margin-left: 15px;">
+                        <label for="hours-${member.code}" style="font-size: 0.9em;">Hours:</label>
+                        <input 
+                            type="number" 
+                            id="hours-${member.code}" 
+                            min="1" 
+                            max="24" 
+                            step="1" 
+                            value="${individualHours}"
+                            style="width: 70px; padding: 3px; border: 1px solid #ddd; border-radius: 4px;"
+                        >
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // Attendance search filter
+    document.getElementById('attendance-search')?.addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase();
+        document.querySelectorAll('#attendance-list .attendance-item').forEach(item => {
+            const name = item.getAttribute('data-name') || '';
+            const code = item.getAttribute('data-code') || '';
+            item.style.display = (name.includes(term) || code.includes(term)) ? '' : 'none';
+        });
+    });
+
+    // Add member inline form toggle
+    document.getElementById('add-member-attendance-btn')?.addEventListener('click', () => {
+        const form = document.getElementById('add-member-inline');
+        form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    });
+    document.getElementById('cancel-add-member-inline')?.addEventListener('click', () => {
+        document.getElementById('add-member-inline').style.display = 'none';
+    });
+    document.getElementById('add-member-inline-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const nameInput = document.getElementById('inline-member-name');
+        const yearInput = document.getElementById('inline-member-year');
+        const name = nameInput.value.trim();
+        const yearLevel = yearInput.value.trim();
+        if (!name) return;
+        try {
+            const member = await apiCall('/api/members', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, yearLevel })
+            });
+            showMessage(`Member "${member.name}" added with code ${member.code}!`, 'success');
+            nameInput.value = '';
+            yearInput.value = '';
+            document.getElementById('add-member-inline').style.display = 'none';
+            loadSessionDetails();
+        } catch (error) {
+            console.error('Error adding member:', error);
+        }
+    });
     
     // Toggle hours input visibility
     window.toggleHoursInput = function(memberCode) {
@@ -791,6 +862,7 @@ if (window.location.pathname.endsWith('members.html')) {
                         <button class="btn btn-edit" onclick="editMember('${member.code}')">Edit</button>
                         <button class="btn btn-delete" onclick="deleteMember('${member.code}', '${member.name}')">Delete</button>
                         ${isSuperAdminUser ? `<button class="btn btn-primary" style="background: #10b981;" onclick="showAdjustHoursModal('${member.code}', '${member.name}')">⏱️ Adjust Hours</button>` : ''}
+                        ${isSuperAdminUser ? `<button class="btn ${member.hiddenFromPublic ? 'btn-warning' : 'btn-secondary'}" onclick="togglePublicVisibility('${member.code}')" title="${member.hiddenFromPublic ? 'Show on public page' : 'Hide from public page'}">${member.hiddenFromPublic ? '👁️ Show Public' : '🙈 Hide Public'}</button>` : ''}
                     </div>
                 </td>
             </tr>
@@ -869,6 +941,20 @@ if (window.location.pathname.endsWith('members.html')) {
             loadMembersPage();
         } catch (error) {
             console.error('Error deleting member:', error);
+        }
+    };
+    
+    // Toggle member public visibility
+    window.togglePublicVisibility = async function(code) {
+        try {
+            await apiCall(`/api/members/${code}/visibility`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            showMessage('Member visibility updated!', 'success');
+            loadMembersPage();
+        } catch (error) {
+            console.error('Error toggling visibility:', error);
         }
     };
     
@@ -1265,6 +1351,89 @@ if (window.location.pathname.endsWith('export.html')) {
         showMessage('Downloading CSV file...', 'success');
     });
     
+    // Helper: generate clipboard text (tab-separated for Google Sheets paste)
+    function generateClipboardData(sessions) {
+        const memberDisplay = document.getElementById('member-display').value;
+        const orientation = document.getElementById('orientation').value;
+
+        const getMemberDisplay = (memberCode) => {
+            const member = allMembers.find(m => m.code === memberCode);
+            if (!member) return memberCode;
+            if (memberDisplay === 'code') return memberCode;
+            if (memberDisplay === 'name') return member.name;
+            if (memberDisplay === 'both') return `${memberCode} - ${member.name}`;
+            return memberCode;
+        };
+
+        const rows = [];
+        if (orientation === 'horizontal') {
+            sessions.forEach(session => {
+                const cells = [`${session.description} (${session.date})`];
+                session.attendees.forEach(code => {
+                    const hrs = (session.individualHours && session.individualHours[code])
+                        ? session.individualHours[code] : (session.hours || 1);
+                    for (let i = 0; i < hrs; i++) cells.push(getMemberDisplay(code));
+                });
+                rows.push(cells.join('\t'));
+            });
+        } else {
+            sessions.forEach(session => {
+                session.attendees.forEach(code => {
+                    const hrs = (session.individualHours && session.individualHours[code])
+                        ? session.individualHours[code] : (session.hours || 1);
+                    for (let i = 0; i < hrs; i++) {
+                        rows.push(`${session.description} (${session.date})\t${getMemberDisplay(code)}`);
+                    }
+                });
+            });
+        }
+        return rows.join('\n');
+    }
+
+    // Load members for clipboard generation
+    let allMembers = [];
+    async function loadMembersForExport() {
+        try {
+            allMembers = await fetch('/api/members').then(res => res.json());
+        } catch (e) {
+            console.error('Error loading members for export:', e);
+        }
+    }
+    loadMembersForExport();
+
+    // Copy selected sessions to clipboard
+    document.getElementById('copy-selected-btn')?.addEventListener('click', async () => {
+        if (selectedSessions.size === 0) {
+            showMessage('Please select at least one session to copy', 'error');
+            return;
+        }
+        const sessionIds = Array.from(selectedSessions);
+        const sessions = allSessions.filter(s => sessionIds.includes(s.id));
+        const text = generateClipboardData(sessions);
+        try {
+            await navigator.clipboard.writeText(text);
+            showMessage('Copied to clipboard! Paste into Google Sheets.', 'success');
+        } catch (e) {
+            showMessage('Failed to copy to clipboard', 'error');
+        }
+    });
+
+    // Copy all sessions to clipboard
+    document.getElementById('copy-all-btn')?.addEventListener('click', async () => {
+        let sessions = [...allSessions];
+        const startDate = document.getElementById('date-range-start').value;
+        const endDate = document.getElementById('date-range-end').value;
+        if (startDate) sessions = sessions.filter(s => new Date(s.date) >= new Date(startDate));
+        if (endDate) sessions = sessions.filter(s => new Date(s.date) <= new Date(endDate));
+        const text = generateClipboardData(sessions);
+        try {
+            await navigator.clipboard.writeText(text);
+            showMessage('Copied to clipboard! Paste into Google Sheets.', 'success');
+        } catch (e) {
+            showMessage('Failed to copy to clipboard', 'error');
+        }
+    });
+
     // Export Returns CSV
     document.getElementById('export-returns-btn')?.addEventListener('click', () => {
         const selectedRR = getSelectedRRSessions();
