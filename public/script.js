@@ -1367,10 +1367,10 @@ if (window.location.pathname.endsWith('export.html')) {
         showMessage('Downloading CSV file...', 'success');
     });
     
-    // Helper: generate clipboard text (tab-separated for Google Sheets paste)
+    // Helper: generate clipboard text (tab-separated columnar format for Google Sheets paste)
+    // Each session becomes a column: header row has session names, member names listed vertically below
     function generateClipboardData(sessions) {
         const memberDisplay = document.getElementById('member-display').value;
-        const orientation = document.getElementById('orientation').value;
 
         const getMemberDisplay = (memberCode) => {
             const member = exportMembers.find(m => m.code === memberCode);
@@ -1381,27 +1381,30 @@ if (window.location.pathname.endsWith('export.html')) {
             return memberCode;
         };
 
+        const formatDate = (dateStr) => {
+            const d = new Date(dateStr);
+            return `${d.getDate()}-${d.getMonth() + 1}-${d.getFullYear()}`;
+        };
+
+        // Build a column of member names for each session (repeated per hours worked)
+        const columns = sessions.map(session => {
+            const header = `${session.description} (${formatDate(session.date)})`;
+            const members = [];
+            session.attendees.forEach(code => {
+                const hrs = (session.individualHours && session.individualHours[code])
+                    ? session.individualHours[code] : (session.hours || 1);
+                for (let i = 0; i < hrs; i++) members.push(getMemberDisplay(code));
+            });
+            return { header, members };
+        });
+
+        const maxRows = Math.max(0, ...columns.map(c => c.members.length));
         const rows = [];
-        if (orientation === 'horizontal') {
-            sessions.forEach(session => {
-                const cells = [`${session.description} (${session.date})`];
-                session.attendees.forEach(code => {
-                    const hrs = (session.individualHours && session.individualHours[code])
-                        ? session.individualHours[code] : (session.hours || 1);
-                    for (let i = 0; i < hrs; i++) cells.push(getMemberDisplay(code));
-                });
-                rows.push(cells.join('\t'));
-            });
-        } else {
-            sessions.forEach(session => {
-                session.attendees.forEach(code => {
-                    const hrs = (session.individualHours && session.individualHours[code])
-                        ? session.individualHours[code] : (session.hours || 1);
-                    for (let i = 0; i < hrs; i++) {
-                        rows.push(`${session.description} (${session.date})\t${getMemberDisplay(code)}`);
-                    }
-                });
-            });
+        // Header row
+        rows.push(columns.map(c => c.header).join('\t'));
+        // Member rows
+        for (let i = 0; i < maxRows; i++) {
+            rows.push(columns.map(c => c.members[i] || '').join('\t'));
         }
         return rows.join('\n');
     }
