@@ -441,7 +441,7 @@ footer {
 }
 
 /* Login Button (public page header) */
-.login-btn {
+header .login-btn {
     position: static;
     display: inline-block;
     margin-top: 15px;
