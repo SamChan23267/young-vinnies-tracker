@@ -71,14 +71,20 @@ app.use(cookieSession({
 
 // Static files - but check auth for main pages
 app.use((req, res, next) => {
-  // Allow access to login page, static assets, and API endpoints
+  // Allow access to login page, public hours page, static assets, and API endpoints
   if (req.path.includes('/login.html') || 
+      req.path.includes('/public-hours.html') ||
       req.path.includes('.css') || 
       req.path.includes('.js') ||
       req.path.startsWith('/api/')) {
     return next();
   }
   
+  // Redirect unauthenticated root visitors to public hours page
+  if (req.path === '/' && !req.session.authenticated) {
+    return res.redirect('/public-hours.html');
+  }
+
   // For main pages, check authentication
   const protectedPages = ['/', '/index.html', '/session.html', '/audit-log.html', '/members.html', '/sessions.html', '/export.html', '/settings.html', '/admin-management.html'];
   if (protectedPages.includes(req.path)) {
@@ -438,6 +444,33 @@ app.get('/api/check-auth', (req, res) => {
   });
 });
 
+// GET /api/public/members - Return members with hours visible to public (no auth required)
+app.get('/api/public/members', async (req, res) => {
+  try {
+    const data = await readData();
+    const members = data.members.filter(m => !m.hiddenFromPublic);
+    // Calculate total hours for each member
+    const membersWithHours = members.map(m => {
+      let hours = 0;
+      data.sessions.forEach(session => {
+        const sessionHours = session.hours || 1;
+        if (session.attendees.includes(m.code)) {
+          const individualHours = session.individualHours && session.individualHours[m.code]
+            ? session.individualHours[m.code] : sessionHours;
+          hours += individualHours;
+        }
+      });
+      hours += (m.manualHours || 0);
+      return { name: m.name, totalHours: hours };
+    });
+    // Sort by hours descending
+    membersWithHours.sort((a, b) => b.totalHours - a.totalHours);
+    res.json(membersWithHours);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch public members' });
+  }
+});
+
 // Data Management Endpoints (Protected)
 
 // GET /api/members - Return all members
@@ -656,6 +689,22 @@ app.post('/api/members/year-levels/adjust', requireSuperAdmin, async (req, res) 
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to adjust year levels' });
+  }
+});
+
+// PUT /api/members/:code/visibility - Toggle member public visibility (super admin & sam)
+app.put('/api/members/:code/visibility', requireSuperAdmin, async (req, res) => {
+  try {
+    const data = await readData();
+    const member = data.members.find(m => m.code === req.params.code);
+    if (!member) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+    member.hiddenFromPublic = !member.hiddenFromPublic;
+    await writeData(data);
+    res.json({ success: true, hiddenFromPublic: member.hiddenFromPublic });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to toggle member visibility' });
   }
 });
 

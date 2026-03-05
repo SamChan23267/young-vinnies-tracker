@@ -440,6 +440,13 @@ footer {
     font-size: 0.9em;
 }
 
+/* Login Button (public page header) */
+header .login-btn {
+    position: static;
+    display: inline-block;
+    margin-top: 15px;
+}
+
 header.has-logout {
     padding: 30px 140px 30px 30px;
     text-align: center;

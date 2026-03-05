@@ -1,4 +1,44 @@
 {
-  "members": [],
-  "sessions": []
+  "members": [
+    {
+      "name": "Alice Smith",
+      "code": "ALICES",
+      "yearLevel": "",
+      "email": "",
+      "manualHours": 0
+    },
+    {
+      "name": "Bob Jones",
+      "code": "BOBJ",
+      "yearLevel": "",
+      "email": "",
+      "manualHours": 0
+    },
+    {
+      "name": "Charlie Brown",
+      "code": "CHARLB",
+      "yearLevel": "",
+      "email": "",
+      "manualHours": 0,
+      "hiddenFromPublic": true
+    }
+  ],
+  "sessions": [
+    {
+      "id": "1",
+      "date": "2026-03-01",
+      "description": "Soup Kitchen",
+      "hours": 2,
+      "sessionType": "",
+      "attendees": [
+        "ALICES",
+        "BOBJ"
+      ],
+      "individualHours": {
+        "ALICES": 3,
+        "BOBJ": 2
+      },
+      "customFields": {}
+    }
+  ]
 }
