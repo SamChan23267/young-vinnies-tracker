@@ -42,8 +42,24 @@
                     return;
                 }
 
+                // Calculate competition ranking (same rank for same hours)
+                let rank = 1;
+                const ranked = members.map((m, i) => {
+                    if (i > 0 && m.totalHours < members[i - 1].totalHours) {
+                        rank = i + 1;
+                    }
+                    return { ...m, rank };
+                });
+
+                function getTierClass(hours) {
+                    if (hours >= 60) return 'tier-gold';
+                    if (hours >= 40) return 'tier-silver';
+                    if (hours >= 20) return 'tier-bronze';
+                    return '';
+                }
+
                 container.innerHTML = '<table><thead><tr><th>#</th><th>Name</th><th>Total Hours</th></tr></thead><tbody>' +
-                    members.map((m, i) => `<tr><td>${i + 1}</td><td>${m.name}</td><td>${m.totalHours} hr${m.totalHours !== 1 ? 's' : ''}</td></tr>`).join('') +
+                    ranked.map(m => `<tr class="${getTierClass(m.totalHours)}"><td>${m.rank}</td><td>${m.name}</td><td>${m.totalHours} hr${m.totalHours !== 1 ? 's' : ''}</td></tr>`).join('') +
                     '</tbody></table>';
             } catch (e) {
                 document.getElementById('public-members-list').innerHTML = '<p class="empty-state">Failed to load data.</p>';

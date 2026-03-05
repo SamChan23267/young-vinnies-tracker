@@ -1130,3 +1130,31 @@ header.has-logout p {
 .btn-warning:hover {
     background: #e0a800;
 }
+
+/* Hour tier highlighting for public leaderboard */
+.tier-gold {
+    background: linear-gradient(90deg, #fff9e6 0%, #fff3cc 100%);
+}
+
+.tier-gold td {
+    color: #856404;
+    font-weight: 600;
+}
+
+.tier-silver {
+    background: linear-gradient(90deg, #f5f5f5 0%, #e8e8e8 100%);
+}
+
+.tier-silver td {
+    color: #495057;
+    font-weight: 600;
+}
+
+.tier-bronze {
+    background: linear-gradient(90deg, #fef0e6 0%, #fde0cc 100%);
+}
+
+.tier-bronze td {
+    color: #7a4a1e;
+    font-weight: 600;
+}
