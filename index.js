@@ -10,6 +10,11 @@ const morgan = require('morgan');
 const fs = require('fs').promises;
 const https = require('https');
 const path = require('path');
+const bcrypt = require('bcrypt');
+
+const BCRYPT_SALT_ROUNDS = 12;
+// Bcrypt hash prefix — used to detect whether a stored password is already hashed
+const BCRYPT_PREFIX = '$2b$';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -206,7 +211,7 @@ function getDisplayRole(role) {
   return role === 'sam' ? 'super_admin' : role;
 }
 
-// Helper function to read users
+// Helper function to read users, auto-migrating any legacy plaintext passwords to bcrypt hashes
 async function readUsers() {
   if (USE_KV) {
     let users = await kvGet('users');
@@ -220,7 +225,11 @@ async function readUsers() {
         users = [];
       }
     }
-    return users;
+    users = await migrateUsersPasswords(users);
+    if (users.migrated) {
+      await kvSet('users', users.users);
+    }
+    return users.users;
   }
   if (_usersCache !== null) return _usersCache;
   try {
@@ -241,6 +250,20 @@ async function readUsers() {
     _usersCache = [];
     return _usersCache;
   }
+}
+
+// Migrate any users whose password is stored as plaintext (not a bcrypt hash) by hashing it.
+// Returns { users: updatedArray, migrated: boolean }
+async function migrateUsersPasswords(users) {
+  let migrated = false;
+  const updated = await Promise.all(users.map(async (u) => {
+    if (u.password && !u.password.startsWith(BCRYPT_PREFIX)) {
+      migrated = true;
+      return { ...u, password: await bcrypt.hash(u.password, BCRYPT_SALT_ROUNDS) };
+    }
+    return u;
+  }));
+  return { users: updated, migrated };
 }
 
 // Helper function to write users
@@ -417,9 +440,9 @@ app.post('/api/login', async (req, res) => {
   
   try {
     const users = await readUsers();
-    const user = users.find(u => u.username === username && u.password === password);
+    const user = users.find(u => u.username === username);
     
-    if (user) {
+    if (user && await bcrypt.compare(password, user.password)) {
       req.session.authenticated = true;
       req.session.username = username;
       req.session.role = user.role;
@@ -1221,12 +1244,12 @@ app.put('/api/change-password', requireAuth, async (req, res) => {
     }
     
     // Verify current password
-    if (users[userIndex].password !== currentPassword) {
+    if (!await bcrypt.compare(currentPassword, users[userIndex].password)) {
       return res.status(401).json({ error: 'Current password is incorrect' });
     }
     
-    // Update password
-    users[userIndex].password = newPassword;
+    // Hash and update password
+    users[userIndex].password = await bcrypt.hash(newPassword, BCRYPT_SALT_ROUNDS);
     await writeUsers(users);
     
     await logAudit('CHANGE_PASSWORD', { username: req.session.username }, req.session.username);
@@ -1282,8 +1305,9 @@ app.post('/api/users', requireSuperAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Username already exists' });
     }
     
-    // Add new user
-    const newUser = { username, password, role, displayName };
+    // Add new user with hashed password
+    const hashedPassword = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
+    const newUser = { username, password: hashedPassword, role, displayName };
     users.push(newUser);
     await writeUsers(users);
     
@@ -1336,8 +1360,8 @@ app.put('/api/users/:username', requireSuperAdmin, async (req, res) => {
       }
     }
     
-    // Update user fields
-    if (password) users[userIndex].password = password;
+    // Update user fields, hashing new password if provided
+    if (password) users[userIndex].password = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
     if (role) users[userIndex].role = role;
     if (displayName) users[userIndex].displayName = displayName;
     

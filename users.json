@@ -1,13 +1,13 @@
 [
   {
     "username": "admin",
-    "password": "vinnies2026",
+    "password": "$2b$12$95YpFIBNk1c1U0KES4baheByO41ehYMr4M7Gvqf1EeV/Np2dDxUpq",
     "role": "super_admin",
     "displayName": "Super Administrator"
   },
   {
     "username": "sam",
-    "password": "sam2026secret",
+    "password": "$2b$12$1sKC6nZzr9A.NkNq/zG/MOhNnOMO2pb0CAeyfk.5DUDPjMxE3RZhe",
     "role": "sam",
     "displayName": "Sam"
   }
