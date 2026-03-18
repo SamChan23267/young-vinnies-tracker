@@ -69,11 +69,11 @@
                     <div class="form-grid">
                         <div class="form-group">
                             <label for="new-username">Username:</label>
-                            <input type="text" id="new-username" required minlength="3">
+                            <input type="text" id="new-username" name="new-username" required minlength="3" autocomplete="off">
                         </div>
                         <div class="form-group">
                             <label for="new-password">Password:</label>
-                            <input type="password" id="new-password" required minlength="6">
+                            <input type="password" id="new-password" name="new-password" required minlength="6" autocomplete="new-password">
                         </div>
                         <div class="form-group">
                             <label for="new-role">Role:</label>
@@ -144,7 +144,7 @@
                 </div>
                 <div class="form-group">
                     <label for="edit-password">New Password (leave blank to keep current):</label>
-                    <input type="password" id="edit-password" minlength="6">
+                    <input type="password" id="edit-password" name="edit-password" minlength="6" autocomplete="new-password">
                 </div>
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary">Save Changes</button>

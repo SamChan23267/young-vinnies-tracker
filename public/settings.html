@@ -36,15 +36,15 @@
                     <form id="change-password-form">
                         <div class="form-group">
                             <label for="current-password">Current Password:</label>
-                            <input type="password" id="current-password" required placeholder="Enter current password">
+                            <input type="password" id="current-password" name="current-password" required placeholder="Enter current password" autocomplete="current-password">
                         </div>
                         <div class="form-group">
                             <label for="new-password">New Password:</label>
-                            <input type="password" id="new-password" required placeholder="Enter new password (min 6 characters)">
+                            <input type="password" id="new-password" name="new-password" required placeholder="Enter new password (min 6 characters)" autocomplete="new-password">
                         </div>
                         <div class="form-group">
                             <label for="confirm-password">Confirm New Password:</label>
-                            <input type="password" id="confirm-password" required placeholder="Confirm new password">
+                            <input type="password" id="confirm-password" name="confirm-password" required placeholder="Confirm new password" autocomplete="new-password">
                         </div>
                         <button type="submit" class="btn btn-primary">Change Password</button>
                     </form>
