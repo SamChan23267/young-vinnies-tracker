@@ -105,6 +105,17 @@ app.use(express.static(path.join(__dirname, 'public'), {
   }
 }));
 
+// Serve empty JavaScript stubs for Vercel analytics scripts.
+// On Vercel, /_vercel/* paths are handled by the platform before reaching Express,
+// so these routes only fire locally where the scripts would otherwise 404 with an
+// application/json body, causing "strict MIME type checking" browser console errors.
+app.get('/_vercel/insights/script.js', (req, res) => {
+  res.type('application/javascript').send('');
+});
+app.get('/_vercel/speed-insights/script.js', (req, res) => {
+  res.type('application/javascript').send('');
+});
+
 // File paths
 const DATA_FILE = path.join(__dirname, 'data.json');
 const AUDIT_LOG_FILE = path.join(__dirname, 'audit_log.json');
