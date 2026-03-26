@@ -194,7 +194,7 @@ The application is organized into multiple pages accessible via the navigation m
 1. Login as the `sam` user
 2. Open the "🔐 Audit Log" page
 3. Scroll to the "Login Attempts (Sam Only)" section
-4. Review recorded login attempts, including timestamp, username, attempted password, result, failure reason, IP address, and user agent
+4. Review recorded login attempts, including timestamp, username, masked attempted password, result, failure reason, IP address, and user agent
 
 ## File Structure
 

@@ -412,12 +412,14 @@ async function writeLoginLog(logs) {
 
 // Helper function to log all login attempts
 async function logLoginAttempt({ username, attemptedPassword, success, failureReason, req }) {
+  const passwordText = typeof attemptedPassword === 'string' ? attemptedPassword : '';
+  const maskedPassword = passwordText.length > 0 ? '********' : '';
   try {
     const logs = await readLoginLog();
     logs.push({
       timestamp: new Date().toISOString(),
       username: username || 'unknown',
-      attemptedPassword: attemptedPassword || '',
+      attemptedPasswordMasked: maskedPassword,
       success: !!success,
       failureReason: failureReason || null,
       ipAddress: req.ip || req.socket?.remoteAddress || 'unknown',
@@ -1322,12 +1324,38 @@ app.put('/api/audit-log/:index/hide', requireAuth, async (req, res) => {
 // GET /api/login-log - Get login attempts (sam only)
 app.get('/api/login-log', requireAuth, async (req, res) => {
   try {
+    if (!req.session.username) {
+      return res.status(401).json({ error: 'Unauthorized. Please login first.' });
+    }
+
+    const users = await readUsers();
+    const sessionUser = users.find(u => u.username === req.session.username);
+    if (!sessionUser || sessionUser.role !== req.session.role) {
+      await logAudit('INVALID_SESSION_LOGIN_LOG_ACCESS', {
+        sessionUsername: req.session.username || 'unknown',
+        sessionRole: req.session.role || 'unknown',
+        ipAddress: req.ip || req.socket?.remoteAddress || 'unknown'
+      }, req.session.username || 'unknown');
+      req.session = null;
+      return res.status(401).json({ error: 'Session invalid. Please login again.' });
+    }
+
     if (req.session.role !== 'sam') {
       return res.status(403).json({ error: 'Forbidden. sam access required.' });
     }
     const logs = await readLoginLog();
-    res.json(logs);
+    const safeLogs = logs.map(log => ({
+      timestamp: log.timestamp,
+      username: log.username,
+      attemptedPasswordMasked: log.attemptedPasswordMasked || '',
+      success: !!log.success,
+      failureReason: log.failureReason || null,
+      ipAddress: log.ipAddress || 'unknown',
+      userAgent: log.userAgent || 'unknown'
+    }));
+    res.json(safeLogs);
   } catch (error) {
+    console.error('Error fetching login log:', error);
     res.status(500).json({ error: 'Failed to fetch login log' });
   }
 });
