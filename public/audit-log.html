@@ -50,6 +50,32 @@
                     </div>
                 </div>
             </section>
+
+            <section id="login-attempts-section" class="card" style="display: none;">
+                <h2>Login Attempts (Sam Only)</h2>
+                <p>All login attempts are recorded, including successes and failures.</p>
+
+                <div class="table-section">
+                    <div id="login-attempts-container">
+                        <table id="login-attempts-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Username</th>
+                                    <th>Attempted Password</th>
+                                    <th>Result</th>
+                                    <th>Failure Reason</th>
+                                    <th>IP Address</th>
+                                    <th>User Agent</th>
+                                </tr>
+                            </thead>
+                            <tbody id="login-attempts-tbody">
+                                <!-- Login attempts will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
         </main>
 
         <footer>
