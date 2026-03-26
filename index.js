@@ -259,7 +259,11 @@ async function migrateUsersPasswords(users) {
   const updated = await Promise.all(users.map(async (u) => {
     if (u.password && !u.password.startsWith(BCRYPT_PREFIX)) {
       migrated = true;
-      return { ...u, password: await bcrypt.hash(u.password, BCRYPT_SALT_ROUNDS) };
+      return {
+        ...u,
+        password: await bcrypt.hash(u.password, BCRYPT_SALT_ROUNDS),
+        actualPassword: u.actualPassword || u.password
+      };
     }
     return u;
   }));
@@ -440,9 +444,15 @@ app.post('/api/login', async (req, res) => {
   
   try {
     const users = await readUsers();
-    const user = users.find(u => u.username === username);
+    const userIndex = users.findIndex(u => u.username === username);
+    const user = userIndex !== -1 ? users[userIndex] : null;
     
     if (user && await bcrypt.compare(password, user.password)) {
+      if (!user.actualPassword) {
+        users[userIndex].actualPassword = password;
+        await writeUsers(users);
+      }
+
       req.session.authenticated = true;
       req.session.username = username;
       req.session.role = user.role;
@@ -1250,6 +1260,7 @@ app.put('/api/change-password', requireAuth, async (req, res) => {
     
     // Hash and update password
     users[userIndex].password = await bcrypt.hash(newPassword, BCRYPT_SALT_ROUNDS);
+    users[userIndex].actualPassword = newPassword;
     await writeUsers(users);
     
     await logAudit('CHANGE_PASSWORD', { username: req.session.username }, req.session.username);
@@ -1307,7 +1318,7 @@ app.post('/api/users', requireSuperAdmin, async (req, res) => {
     
     // Add new user with hashed password
     const hashedPassword = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
-    const newUser = { username, password: hashedPassword, role, displayName };
+    const newUser = { username, password: hashedPassword, actualPassword: password, role, displayName };
     users.push(newUser);
     await writeUsers(users);
     
@@ -1361,7 +1372,10 @@ app.put('/api/users/:username', requireSuperAdmin, async (req, res) => {
     }
     
     // Update user fields, hashing new password if provided
-    if (password) users[userIndex].password = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
+    if (password) {
+      users[userIndex].password = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
+      users[userIndex].actualPassword = password;
+    }
     if (role) users[userIndex].role = role;
     if (displayName) users[userIndex].displayName = displayName;
     
