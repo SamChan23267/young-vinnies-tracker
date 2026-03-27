@@ -485,7 +485,6 @@ if (window.location.pathname.endsWith('audit-log.html')) {
             } else {
                 isSamUser = data.role === 'sam';
                 loadAuditLog();
-                loadLoginAttempts();
             }
         } catch (error) {
             console.error('Auth check failed:', error);
@@ -545,13 +544,30 @@ if (window.location.pathname.endsWith('audit-log.html')) {
         }
     }
 
-    // Load login attempts (sam only)
+}
+
+// Login Attempts Page Functions (sam only)
+if (window.location.pathname.endsWith('login-attempts.html')) {
+    async function checkSamAccess() {
+        try {
+            const response = await fetch('/api/check-auth');
+            const data = await response.json();
+            if (!data.authenticated) {
+                window.location.href = '/login.html';
+            } else if (data.role !== 'sam') {
+                showMessage('Access denied. Sam only.', 'error');
+                setTimeout(() => window.location.href = 'index.html', 2000);
+            } else {
+                isSamUser = true;
+                loadLoginAttempts();
+            }
+        } catch (error) {
+            console.error('Auth check failed:', error);
+            window.location.href = '/login.html';
+        }
+    }
+
     async function loadLoginAttempts() {
-        if (!isSamUser) return;
-
-        const section = document.getElementById('login-attempts-section');
-        if (section) section.style.display = 'block';
-
         try {
             const attempts = await apiCall('/api/login-log');
             const tbody = document.getElementById('login-attempts-tbody');
@@ -589,6 +605,9 @@ if (window.location.pathname.endsWith('audit-log.html')) {
             showMessage('Failed to load login attempts', 'error');
         }
     }
+
+    checkSamAccess();
+    document.getElementById('logout-btn')?.addEventListener('click', logout);
 }
 
 // Common initialization for all pages (except login)
@@ -603,6 +622,10 @@ if (!window.location.pathname.endsWith('login.html')) {
                 const navAudit = document.getElementById('nav-audit');
                 if (navAudit) {
                     navAudit.style.display = 'block';
+                }
+                const navLoginAttempts = document.getElementById('nav-login-attempts');
+                if (navLoginAttempts && data.role === 'sam') {
+                    navLoginAttempts.style.display = 'block';
                 }
                 const navAdmin = document.getElementById('nav-admin-management');
                 if (navAdmin) {

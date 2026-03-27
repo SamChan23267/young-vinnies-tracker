@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Audit Log - Young Vinnies Tracker</title>
+    <title>Login Attempts - Young Vinnies Tracker</title>
     <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
     <div class="container">
         <header>
             <h1>🌟 Young Vinnies Volunteer Hour Tracker</h1>
-            <p>System Audit Log</p>
+            <p>Login Attempts</p>
         </header>
 
         <!-- Navigation -->
@@ -21,37 +21,38 @@
                 <li><a href="sessions.html">📅 Sessions</a></li>
                 <li><a href="export.html">📊 Export Data</a></li>
                 <li><a href="settings.html">⚙️ Settings</a></li>
-                <li id="nav-audit"><a href="audit-log.html" class="active">🔐 Audit Log</a></li>
-                <li id="nav-login-attempts" style="display: none;"><a href="login-attempts.html">🧾 Login Attempts</a></li>
+                <li id="nav-audit"><a href="audit-log.html">🔐 Audit Log</a></li>
+                <li id="nav-login-attempts"><a href="login-attempts.html" class="active">🧾 Login Attempts</a></li>
                 <li id="nav-admin-management" style="display: none;"><a href="admin-management.html">👤 User Management</a></li>
             </ul>
         </nav>
 
         <main>
             <section class="card">
-                <h2>System Activity Log</h2>
-                <p>View all changes made to members, sessions, and attendance by all administrators.</p>
-                
+                <h2>Login Attempts (Sam Only)</h2>
+                <p>All login attempts are recorded, including successes and failures.</p>
+
                 <div class="table-section">
-                    <div id="audit-log-container">
-                        <table id="audit-log-table">
+                    <div id="login-attempts-container">
+                        <table id="login-attempts-table">
                             <thead>
                                 <tr>
                                     <th>Timestamp</th>
-                                    <th>User</th>
-                                    <th>Action</th>
-                                    <th>Details</th>
-                                    <th id="audit-log-actions-header" style="display: none;">Actions</th>
+                                    <th>Username</th>
+                                    <th>Attempted Password (Masked)</th>
+                                    <th>Result</th>
+                                    <th>Failure Reason</th>
+                                    <th>IP Address</th>
+                                    <th>User Agent</th>
                                 </tr>
                             </thead>
-                            <tbody id="audit-log-tbody">
-                                <!-- Audit log entries will be loaded here -->
+                            <tbody id="login-attempts-tbody">
+                                <!-- Login attempts will be loaded here -->
                             </tbody>
                         </table>
                     </div>
                 </div>
             </section>
-
         </main>
 
         <footer>

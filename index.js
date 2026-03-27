@@ -91,7 +91,7 @@ app.use((req, res, next) => {
   }
 
   // For main pages, check authentication
-  const protectedPages = ['/', '/index.html', '/session.html', '/audit-log.html', '/members.html', '/sessions.html', '/export.html', '/settings.html', '/admin-management.html'];
+  const protectedPages = ['/', '/index.html', '/session.html', '/audit-log.html', '/login-attempts.html', '/members.html', '/sessions.html', '/export.html', '/settings.html', '/admin-management.html'];
   if (protectedPages.includes(req.path)) {
     if (!req.session.authenticated) {
       return res.redirect('/login.html');

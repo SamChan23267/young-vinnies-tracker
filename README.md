@@ -192,8 +192,7 @@ The application is organized into multiple pages accessible via the navigation m
 
 ### Viewing Login Attempts (Sam Only)
 1. Login as the `sam` user
-2. Open the "🔐 Audit Log" page
-3. Scroll to the "Login Attempts (Sam Only)" section
+2. Open the "🧾 Login Attempts" page from the navigation
 4. Review recorded login attempts, including timestamp, username, masked attempted password, result, failure reason, IP address, and user agent
 
 ## File Structure
@@ -212,6 +211,7 @@ The application is organized into multiple pages accessible via the navigation m
 │   ├── export.html       # Data export page with filters
 │   ├── session.html      # Individual session attendance page
 │   ├── audit-log.html    # Audit log viewer (super admin only)
+│   ├── login-attempts.html # Login attempts viewer (sam only)
 │   ├── login.html        # Login page
 │   ├── style.css         # Styling with navigation and dashboard components
 │   └── script.js         # Frontend JavaScript for all pages
