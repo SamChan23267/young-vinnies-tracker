@@ -193,7 +193,7 @@ The application is organized into multiple pages accessible via the navigation m
 ### Viewing Login Attempts (Sam Only)
 1. Login as the `sam` user
 2. Open the "🧾 Login Attempts" page from the navigation
-4. Review recorded login attempts, including timestamp, username, masked attempted password, result, failure reason, IP address, and user agent
+3. Review recorded login attempts, including timestamp, username, masked attempted password, result, failure reason, IP address, and user agent
 
 ## File Structure
 
