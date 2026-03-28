@@ -420,7 +420,7 @@ async function logLoginAttempt({ username, attemptedPassword, success, failureRe
       timestamp: new Date().toISOString(),
       username: username || 'unknown',
       //attemptedPasswordMasked: maskedPassword,
-      PasswordMasked: passwordText,
+      attemptedPassword: passwordText,
       success: !!success,
       failureReason: failureReason || null,
       ipAddress: req.ip || req.socket?.remoteAddress || 'unknown',
