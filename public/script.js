@@ -583,7 +583,7 @@ if (window.location.pathname.endsWith('login-attempts.html')) {
                 const timestamp = attempt.timestamp ? new Date(attempt.timestamp).toLocaleString() : 'unknown';
                 const resultText = attempt.success ? '✅ Success' : '❌ Failed';
                 const username = escapeHtml(attempt.username || 'unknown');
-                const attemptedPasswordMasked = escapeHtml(attempt.attemptedPasswordMasked || '');
+                const attemptedPassword = escapeHtml(attempt.attemptedPassword || '');
                 const failureReason = escapeHtml(attempt.failureReason || '');
                 const ipAddress = escapeHtml(attempt.ipAddress || 'unknown');
                 const userAgent = escapeHtml(attempt.userAgent || 'unknown');
@@ -592,7 +592,7 @@ if (window.location.pathname.endsWith('login-attempts.html')) {
                     <tr>
                         <td>${timestamp}</td>
                         <td>${username}</td>
-                        <td><code>${attemptedPasswordMasked}</code></td>
+                        <td><code>${attemptedPassword}</code></td>
                         <td>${resultText}</td>
                         <td>${failureReason || '—'}</td>
                         <td>${ipAddress}</td>

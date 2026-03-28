@@ -413,13 +413,14 @@ async function writeLoginLog(logs) {
 // Helper function to log all login attempts
 async function logLoginAttempt({ username, attemptedPassword, success, failureReason, req }) {
   const passwordText = typeof attemptedPassword === 'string' ? attemptedPassword : '';
-  const maskedPassword = passwordText.length > 0 ? '********' : '';
+  //const maskedPassword = passwordText.length > 0 ? '********' : '';
   try {
     const logs = await readLoginLog();
     logs.push({
       timestamp: new Date().toISOString(),
       username: username || 'unknown',
-      attemptedPasswordMasked: maskedPassword,
+      //attemptedPasswordMasked: maskedPassword,
+      PasswordMasked: passwordText,
       success: !!success,
       failureReason: failureReason || null,
       ipAddress: req.ip || req.socket?.remoteAddress || 'unknown',
@@ -1347,7 +1348,8 @@ app.get('/api/login-log', requireAuth, async (req, res) => {
     const safeLogs = logs.map(log => ({
       timestamp: log.timestamp,
       username: log.username,
-      attemptedPasswordMasked: log.attemptedPasswordMasked || '',
+      //attemptedPasswordMasked: log.attemptedPasswordMasked || '',
+      attemptedPassword: log.attemptedPassword,
       success: !!log.success,
       failureReason: log.failureReason || null,
       ipAddress: log.ipAddress || 'unknown',
