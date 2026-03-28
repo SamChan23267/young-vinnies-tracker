@@ -190,6 +190,11 @@ The application is organized into multiple pages accessible via the navigation m
 4. Review entries with timestamps and usernames
 5. Each entry shows who made the change, when, and what was changed
 
+### Viewing Login Attempts (Sam Only)
+1. Login as the `sam` user
+2. Open the "🧾 Login Attempts" page from the navigation
+3. Review recorded login attempts, including timestamp, username, masked attempted password, result, failure reason, IP address, and user agent
+
 ## File Structure
 
 ```
@@ -197,6 +202,7 @@ The application is organized into multiple pages accessible via the navigation m
 ├── package.json          # Node.js project configuration
 ├── data.json             # Data storage (members and sessions)
 ├── audit_log.json        # Audit log of all changes with usernames
+├── login_log.json        # Login attempt log (sam-only visibility in UI)
 ├── users.json            # User accounts with roles
 ├── public/
 │   ├── index.html        # Dashboard page (home)
@@ -205,6 +211,7 @@ The application is organized into multiple pages accessible via the navigation m
 │   ├── export.html       # Data export page with filters
 │   ├── session.html      # Individual session attendance page
 │   ├── audit-log.html    # Audit log viewer (super admin only)
+│   ├── login-attempts.html # Login attempts viewer (sam only)
 │   ├── login.html        # Login page
 │   ├── style.css         # Styling with navigation and dashboard components
 │   └── script.js         # Frontend JavaScript for all pages
@@ -235,6 +242,9 @@ The application is organized into multiple pages accessible via the navigation m
 
 ### Super Admin Only
 - `GET /api/audit-log` - View complete system audit log
+
+### Sam Only
+- `GET /api/login-log` - View login attempt log
 
 ## Screenshots
 

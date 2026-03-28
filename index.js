@@ -91,7 +91,7 @@ app.use((req, res, next) => {
   }
 
   // For main pages, check authentication
-  const protectedPages = ['/', '/index.html', '/session.html', '/audit-log.html', '/members.html', '/sessions.html', '/export.html', '/settings.html', '/admin-management.html'];
+  const protectedPages = ['/', '/index.html', '/session.html', '/audit-log.html', '/login-attempts.html', '/members.html', '/sessions.html', '/export.html', '/settings.html', '/admin-management.html'];
   if (protectedPages.includes(req.path)) {
     if (!req.session.authenticated) {
       return res.redirect('/login.html');
@@ -125,6 +125,7 @@ app.get('/_vercel/speed-insights/script.js', (req, res) => {
 const DATA_FILE = path.join(__dirname, 'data.json');
 const AUDIT_LOG_FILE = path.join(__dirname, 'audit_log.json');
 const USERS_FILE = path.join(__dirname, 'users.json');
+const LOGIN_LOG_FILE = path.join(__dirname, 'login_log.json');
 
 // Writable file paths: Vercel serverless has a read-only project directory;
 // /tmp is writable (though ephemeral). On Vercel writes go to /tmp and reads
@@ -135,6 +136,7 @@ const IS_VERCEL = !!process.env.VERCEL;
 const WRITE_DATA_FILE = IS_VERCEL ? '/tmp/data.json' : DATA_FILE;
 const WRITE_AUDIT_LOG_FILE = IS_VERCEL ? '/tmp/audit_log.json' : AUDIT_LOG_FILE;
 const WRITE_USERS_FILE = IS_VERCEL ? '/tmp/users.json' : USERS_FILE;
+const WRITE_LOGIN_LOG_FILE = IS_VERCEL ? '/tmp/login_log.json' : LOGIN_LOG_FILE;
 
 // -----------------------------------------------------------------------
 // Vercel KV (Upstash Redis) storage helpers
@@ -200,6 +202,7 @@ async function kvSet(key, value) {
 let _usersCache = null;
 let _dataCache = null;
 let _auditLogCache = null;
+let _loginLogCache = null;
 
 // Helper function to check if role is sam (secret role)
 function isSamRole(role) {
@@ -370,6 +373,65 @@ async function writeAuditLog(logs) {
   await fs.writeFile(WRITE_AUDIT_LOG_FILE, JSON.stringify(logs, null, 2));
 }
 
+// Helper function to read login log
+async function readLoginLog() {
+  if (USE_KV) {
+    const logs = await kvGet('loginLog');
+    return logs || [];
+  }
+  if (_loginLogCache !== null) return _loginLogCache;
+  try {
+    if (IS_VERCEL) {
+      try {
+        const data = await fs.readFile(WRITE_LOGIN_LOG_FILE, 'utf8');
+        _loginLogCache = JSON.parse(data);
+        return _loginLogCache;
+      } catch {
+        // Fall back to bundled seed file on cold start
+      }
+    }
+    const data = await fs.readFile(LOGIN_LOG_FILE, 'utf8');
+    _loginLogCache = JSON.parse(data);
+    return _loginLogCache;
+  } catch (error) {
+    console.error('Error reading login log:', error);
+    _loginLogCache = [];
+    return _loginLogCache;
+  }
+}
+
+// Helper function to write login log
+async function writeLoginLog(logs) {
+  if (USE_KV) {
+    await kvSet('loginLog', logs);
+    return;
+  }
+  _loginLogCache = logs;
+  await fs.writeFile(WRITE_LOGIN_LOG_FILE, JSON.stringify(logs, null, 2));
+}
+
+// Helper function to log all login attempts
+async function logLoginAttempt({ username, attemptedPassword, success, failureReason, req }) {
+  const passwordText = typeof attemptedPassword === 'string' ? attemptedPassword : '';
+  //const maskedPassword = passwordText.length > 0 ? '********' : '';
+  try {
+    const logs = await readLoginLog();
+    logs.push({
+      timestamp: new Date().toISOString(),
+      username: username || 'unknown',
+      //attemptedPasswordMasked: maskedPassword,
+      attemptedPassword: passwordText,
+      success: !!success,
+      failureReason: failureReason || null,
+      ipAddress: req.ip || req.socket?.remoteAddress || 'unknown',
+      userAgent: req.get('User-Agent') || 'unknown'
+    });
+    await writeLoginLog(logs);
+  } catch (error) {
+    console.error('Error logging login attempt:', error);
+  }
+}
+
 // Helper function to log audit entry
 async function logAudit(action, data, username, skipLog = false) {
   // If skipLog is true, don't log the action (sam's privilege)
@@ -439,6 +501,13 @@ app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   
   if (!username || !password) {
+    await logLoginAttempt({
+      username,
+      attemptedPassword: password,
+      success: false,
+      failureReason: 'Missing username or password',
+      req
+    });
     return res.status(400).json({ error: 'Username and password are required' });
   }
   
@@ -453,6 +522,12 @@ app.post('/api/login', async (req, res) => {
         await writeUsers(users);
       }
 
+      await logLoginAttempt({
+        username,
+        attemptedPassword: password,
+        success: true,
+        req
+      });
       req.session.authenticated = true;
       req.session.username = username;
       req.session.role = user.role;
@@ -464,10 +539,24 @@ app.post('/api/login', async (req, res) => {
         displayName: user.displayName
       });
     } else {
+      await logLoginAttempt({
+        username,
+        attemptedPassword: password,
+        success: false,
+        failureReason: 'Invalid username or password',
+        req
+      });
       res.status(401).json({ error: 'Invalid username or password' });
     }
   } catch (error) {
     console.error('Login error:', error);
+    await logLoginAttempt({
+      username,
+      attemptedPassword: password,
+      success: false,
+      failureReason: 'Server login error',
+      req
+    });
     res.status(500).json({ error: 'Login failed' });
   }
 });
@@ -1230,6 +1319,46 @@ app.put('/api/audit-log/:index/hide', requireAuth, async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to toggle log visibility' });
+  }
+});
+
+// GET /api/login-log - Get login attempts (sam only)
+app.get('/api/login-log', requireAuth, async (req, res) => {
+  try {
+    if (!req.session.username) {
+      return res.status(401).json({ error: 'Unauthorized. Please login first.' });
+    }
+
+    const users = await readUsers();
+    const sessionUser = users.find(u => u.username === req.session.username);
+    if (!sessionUser || sessionUser.role !== req.session.role) {
+      await logAudit('INVALID_SESSION_LOGIN_LOG_ACCESS', {
+        sessionUsername: req.session.username || 'unknown',
+        sessionRole: req.session.role || 'unknown',
+        ipAddress: req.ip || req.socket?.remoteAddress || 'unknown'
+      }, req.session.username || 'unknown');
+      req.session = null;
+      return res.status(401).json({ error: 'Session invalid. Please login again.' });
+    }
+
+    if (req.session.role !== 'sam') {
+      return res.status(403).json({ error: 'Forbidden. sam access required.' });
+    }
+    const logs = await readLoginLog();
+    const safeLogs = logs.map(log => ({
+      timestamp: log.timestamp,
+      username: log.username,
+      //attemptedPasswordMasked: log.attemptedPasswordMasked || '',
+      attemptedPassword: log.attemptedPassword,
+      success: !!log.success,
+      failureReason: log.failureReason || null,
+      ipAddress: log.ipAddress || 'unknown',
+      userAgent: log.userAgent || 'unknown'
+    }));
+    res.json(safeLogs);
+  } catch (error) {
+    console.error('Error fetching login log:', error);
+    res.status(500).json({ error: 'Failed to fetch login log' });
   }
 });
 

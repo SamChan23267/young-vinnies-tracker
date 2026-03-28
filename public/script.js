@@ -2,6 +2,14 @@
 
 // Safe element value setter - prevents crash if element doesn't exist
 function setVal(elId, val) { const el = document.getElementById(elId); if (el) el.value = val; }
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
 
 // Custom field helpers for session forms
 function addCustomField(containerId, key, value) {
@@ -535,6 +543,71 @@ if (window.location.pathname.endsWith('audit-log.html')) {
             showMessage('Failed to load audit log', 'error');
         }
     }
+
+}
+
+// Login Attempts Page Functions (sam only)
+if (window.location.pathname.endsWith('login-attempts.html')) {
+    async function checkSamAccess() {
+        try {
+            const response = await fetch('/api/check-auth');
+            const data = await response.json();
+            if (!data.authenticated) {
+                window.location.href = '/login.html';
+            } else if (data.role !== 'sam') {
+                showMessage('Access denied. Sam only.', 'error');
+                setTimeout(() => window.location.href = 'index.html', 2000);
+            } else {
+                isSamUser = true;
+                loadLoginAttempts();
+            }
+        } catch (error) {
+            console.error('Auth check failed:', error);
+            window.location.href = '/login.html';
+        }
+    }
+
+    async function loadLoginAttempts() {
+        try {
+            const attempts = await apiCall('/api/login-log');
+            const tbody = document.getElementById('login-attempts-tbody');
+
+            if (!tbody) return;
+            if (attempts.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><p>No login attempts recorded yet.</p></td></tr>';
+                return;
+            }
+
+            attempts.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            tbody.innerHTML = attempts.map((attempt) => {
+                const timestamp = attempt.timestamp ? new Date(attempt.timestamp).toLocaleString() : 'unknown';
+                const resultText = attempt.success ? '✅ Success' : '❌ Failed';
+                const username = escapeHtml(attempt.username || 'unknown');
+                const attemptedPassword = escapeHtml(attempt.attemptedPassword || '');
+                const failureReason = escapeHtml(attempt.failureReason || '');
+                const ipAddress = escapeHtml(attempt.ipAddress || 'unknown');
+                const userAgent = escapeHtml(attempt.userAgent || 'unknown');
+
+                return `
+                    <tr>
+                        <td>${timestamp}</td>
+                        <td>${username}</td>
+                        <td><code>${attemptedPassword}</code></td>
+                        <td>${resultText}</td>
+                        <td>${failureReason || '—'}</td>
+                        <td>${ipAddress}</td>
+                        <td style="max-width: 260px; word-break: break-word;">${userAgent}</td>
+                    </tr>
+                `;
+            }).join('');
+        } catch (error) {
+            console.error('Error loading login attempts:', error);
+            showMessage('Failed to load login attempts', 'error');
+        }
+    }
+
+    checkSamAccess();
+    document.getElementById('logout-btn')?.addEventListener('click', logout);
 }
 
 // Common initialization for all pages (except login)
@@ -549,6 +622,10 @@ if (!window.location.pathname.endsWith('login.html')) {
                 const navAudit = document.getElementById('nav-audit');
                 if (navAudit) {
                     navAudit.style.display = 'block';
+                }
+                const navLoginAttempts = document.getElementById('nav-login-attempts');
+                if (navLoginAttempts && data.role === 'sam') {
+                    navLoginAttempts.style.display = 'block';
                 }
                 const navAdmin = document.getElementById('nav-admin-management');
                 if (navAdmin) {
