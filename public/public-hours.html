@@ -85,7 +85,8 @@
 
         async function initLeaderboardNav() {
             try {
-                const response = await fetch('/api/check-auth');
+                const response = await fetch('/api/check-auth', { cache: 'no-store' });
+                if (!response.ok) return;
                 const data = await response.json();
                 if (data.authenticated) {
                     const nav = document.getElementById('authenticated-nav');
@@ -106,6 +107,8 @@
                 console.error('Leaderboard nav init failed:', error);
             }
         }
+        document.addEventListener('DOMContentLoaded', initLeaderboardNav);
+        window.addEventListener('pageshow', initLeaderboardNav);
         initLeaderboardNav();
     </script>
     <script>
