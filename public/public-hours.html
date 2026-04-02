@@ -86,7 +86,10 @@
         async function initLeaderboardNav() {
             try {
                 const response = await fetch('/api/check-auth', { cache: 'no-store' });
-                if (!response.ok) return;
+                if (!response.ok) {
+                    console.error('Leaderboard auth check failed:', response.status);
+                    return;
+                }
                 const data = await response.json();
                 if (data.authenticated) {
                     const nav = document.getElementById('authenticated-nav');
@@ -108,7 +111,9 @@
             }
         }
         document.addEventListener('DOMContentLoaded', initLeaderboardNav);
-        window.addEventListener('pageshow', initLeaderboardNav);
+        window.addEventListener('pageshow', (event) => {
+            if (event.persisted) initLeaderboardNav();
+        });
     </script>
     <script>
         window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
