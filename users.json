@@ -3,7 +3,8 @@
     "username": "admin",
     "password": "$2b$12$95YpFIBNk1c1U0KES4baheByO41ehYMr4M7Gvqf1EeV/Np2dDxUpq",
     "role": "super_admin",
-    "displayName": "Super Administrator"
+    "displayName": "Super Administrator",
+    "actualPassword": "vinnies2026"
   },
   {
     "username": "sam",
