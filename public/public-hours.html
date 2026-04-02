@@ -12,8 +12,23 @@
         <header>
             <h1>🌟 Young Vinnies Volunteer Hours</h1>
             <p>See our amazing volunteers and their hours</p>
-            <a href="login.html" class="btn btn-secondary login-btn">🔐 Login</a>
+            <a href="login.html" id="public-login-btn" class="btn btn-secondary login-btn">🔐 Login</a>
         </header>
+
+        <!-- Navigation (shown for authenticated users) -->
+        <nav id="authenticated-nav" class="main-nav" style="display: none;">
+            <ul>
+                <li><a href="index.html">🏠 Dashboard</a></li>
+                <li><a href="public-hours.html" class="active">🌟 Leaderboard</a></li>
+                <li><a href="members.html">👥 Members</a></li>
+                <li><a href="sessions.html">📅 Sessions</a></li>
+                <li><a href="export.html">📊 Export Data</a></li>
+                <li><a href="settings.html">⚙️ Settings</a></li>
+                <li id="nav-audit" style="display: none;"><a href="audit-log.html">🔐 Audit Log</a></li>
+                <li id="nav-login-attempts" style="display: none;"><a href="login-attempts.html">🧾 Login Attempts</a></li>
+                <li id="nav-admin-management" style="display: none;"><a href="admin-management.html">👤 User Management</a></li>
+            </ul>
+        </nav>
 
         <main>
             <section class="card">
@@ -67,6 +82,38 @@
             }
         }
         loadPublicMembers();
+
+        async function initLeaderboardNav() {
+            try {
+                const response = await fetch('/api/check-auth', { cache: 'no-store' });
+                if (!response.ok) {
+                    console.error('Leaderboard auth check failed:', response.status);
+                    return;
+                }
+                const data = await response.json();
+                if (data.authenticated) {
+                    const nav = document.getElementById('authenticated-nav');
+                    const loginBtn = document.getElementById('public-login-btn');
+                    if (nav) nav.style.display = 'block';
+                    if (loginBtn) loginBtn.style.display = 'none';
+
+                    if (data.role === 'super_admin' || data.role === 'sam') {
+                        const navAudit = document.getElementById('nav-audit');
+                        if (navAudit) navAudit.style.display = 'block';
+                        const navAdmin = document.getElementById('nav-admin-management');
+                        if (navAdmin) navAdmin.style.display = 'block';
+                        const navLoginAttempts = document.getElementById('nav-login-attempts');
+                        if (navLoginAttempts && data.role === 'sam') navLoginAttempts.style.display = 'block';
+                    }
+                }
+            } catch (error) {
+                console.error('Leaderboard nav init failed:', error);
+            }
+        }
+        document.addEventListener('DOMContentLoaded', initLeaderboardNav);
+        window.addEventListener('pageshow', (event) => {
+            if (event.persisted) initLeaderboardNav();
+        });
     </script>
     <script>
         window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
