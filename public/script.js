@@ -952,6 +952,7 @@ if (window.location.pathname.endsWith('members.html')) {
                 <td>${totalHours} hrs</td>
                 <td>
                     <div class="action-buttons">
+                        <button class="btn btn-secondary" onclick="showMemberDetails('${member.code}')">📋 Details</button>
                         <button class="btn btn-edit" onclick="editMember('${member.code}')">Edit</button>
                         <button class="btn btn-delete" onclick="deleteMember('${member.code}', '${member.name}')">Delete</button>
                         ${isSuperAdminUser ? `<button class="btn btn-primary" style="background: #10b981;" onclick="showAdjustHoursModal('${member.code}', '${member.name}')">⏱️ Adjust Hours</button>` : ''}
@@ -962,8 +963,79 @@ if (window.location.pathname.endsWith('members.html')) {
         `}).join('');
     }
     
-    // Search functionality
-    document.getElementById('member-search')?.addEventListener('input', filterAndSortMembers);
+    // Show member details modal
+    window.showMemberDetails = function(code) {
+        const member = allMembers.find(m => m.code === code);
+        if (!member) return;
+
+        // Gather sessions this member attended
+        const attendedSessions = allSessions
+            .filter(s => s.attendees.includes(code))
+            .map(s => {
+                const sessionHours = s.hours || 1;
+                const individualHours = s.individualHours && s.individualHours[code]
+                    ? s.individualHours[code]
+                    : sessionHours;
+                return { date: s.date, description: s.description, hours: individualHours };
+            })
+            .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        const sessionHoursTotal = attendedSessions.reduce((sum, s) => sum + s.hours, 0);
+        const manualHours = member.manualHours || 0;
+        const totalHours = sessionHoursTotal + manualHours;
+
+        document.getElementById('member-details-title').textContent = `📋 ${member.name} (${member.code})`;
+
+        document.getElementById('member-details-summary').innerHTML = `
+            <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:10px 16px;">
+                <div style="font-size:0.8em;color:#166534;">Session Hours</div>
+                <div style="font-size:1.4em;font-weight:bold;color:#15803d;">${sessionHoursTotal} hrs</div>
+            </div>
+            <div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:6px;padding:10px 16px;">
+                <div style="font-size:0.8em;color:#1e3a8a;">Manual Adjustment</div>
+                <div style="font-size:1.4em;font-weight:bold;color:#1d4ed8;">${manualHours >= 0 ? '+' : ''}${manualHours} hrs</div>
+            </div>
+            <div style="background:#faf5ff;border:1px solid #c4b5fd;border-radius:6px;padding:10px 16px;">
+                <div style="font-size:0.8em;color:#4c1d95;">Total Hours</div>
+                <div style="font-size:1.4em;font-weight:bold;color:#6d28d9;">${totalHours} hrs</div>
+            </div>
+        `;
+
+        const sessionsContainer = document.getElementById('member-details-sessions');
+        if (attendedSessions.length === 0) {
+            sessionsContainer.innerHTML = '<p style="color:#666;font-style:italic;padding:10px 0;">No sessions attended yet.</p>';
+        } else {
+            sessionsContainer.innerHTML = `
+                <table style="width:100%;border-collapse:collapse;font-size:0.9em;">
+                    <thead>
+                        <tr style="background:#f1f5f9;">
+                            <th style="text-align:left;padding:8px 10px;border-bottom:2px solid #e2e8f0;">Date</th>
+                            <th style="text-align:left;padding:8px 10px;border-bottom:2px solid #e2e8f0;">Description</th>
+                            <th style="text-align:right;padding:8px 10px;border-bottom:2px solid #e2e8f0;">Hours</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${attendedSessions.map((s, i) => `
+                            <tr style="background:${i % 2 === 0 ? 'white' : '#f8fafc'};">
+                                <td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;">${escapeHtml(s.date || '-')}</td>
+                                <td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;">${escapeHtml(s.description || '-')}</td>
+                                <td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;text-align:right;">${s.hours} hrs</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        document.getElementById('member-details-modal').style.display = 'block';
+    };
+
+    // Close member details modal
+    document.getElementById('member-details-close')?.addEventListener('click', () => {
+        document.getElementById('member-details-modal').style.display = 'none';
+    });
+
+    
     
     // Filter and sort event listeners
     document.getElementById('member-sort')?.addEventListener('change', filterAndSortMembers);
@@ -1091,11 +1163,15 @@ if (window.location.pathname.endsWith('members.html')) {
     window.addEventListener('click', (e) => {
         const editModal = document.getElementById('edit-member-modal');
         const adjustModal = document.getElementById('adjust-hours-modal');
+        const detailsModal = document.getElementById('member-details-modal');
         if (e.target === editModal) {
             editModal.style.display = 'none';
         }
         if (e.target === adjustModal) {
             adjustModal.style.display = 'none';
+        }
+        if (e.target === detailsModal) {
+            detailsModal.style.display = 'none';
         }
     });
     
