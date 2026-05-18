@@ -96,6 +96,87 @@
             return items.length ? items.join(', ') : '—';
         }
 
+        function getShouldReceive(eligible, received) {
+            return {
+                bronze: !!eligible.bronze && !received.bronze,
+                silver: !!eligible.silver && !received.silver,
+                gold: !!eligible.gold && !received.gold
+            };
+        }
+
+        function rowMatchesCurrentFilter(row) {
+            const filterBadge = document.getElementById('badge-filter').value;
+            const includeReceived = document.getElementById('include-received').checked;
+            const hasPending = row.shouldReceive.bronze || row.shouldReceive.silver || row.shouldReceive.gold;
+
+            if (filterBadge === 'all') {
+                return includeReceived
+                    ? (hasPending || row.received.bronze || row.received.silver || row.received.gold)
+                    : hasPending;
+            }
+
+            return includeReceived
+                ? (row.eligible[filterBadge] || row.received[filterBadge])
+                : row.shouldReceive[filterBadge];
+        }
+
+        function renderActionButtons(row) {
+            const pendingBadges = Object.entries(row.shouldReceive).filter(([, v]) => !!v).map(([k]) => k);
+            const receivedBadges = Object.entries(row.received).filter(([, v]) => !!v).map(([k]) => k);
+            const actionButtons = [];
+
+            if (_isSuperAdmin) {
+                pendingBadges.forEach(badge => {
+                    actionButtons.push(
+                        `<button class="btn btn-primary btn-sm" onclick="markBadgeReceived('${row.code}', '${badge}')">Mark ${getBadgeText(badge)}</button>`
+                    );
+                });
+                receivedBadges.forEach(badge => {
+                    actionButtons.push(
+                        `<button class="btn btn-secondary btn-sm" onclick="unmarkBadgeReceived('${row.code}', '${badge}')">Unmark ${getBadgeText(badge)}</button>`
+                    );
+                });
+
+                if (pendingBadges.length > 1) {
+                    actionButtons.push(`<button class="btn btn-success btn-sm" onclick='markAllDueBadges("${row.code}", ${JSON.stringify(row.shouldReceive)})'>Mark All Due</button>`);
+                }
+            }
+
+            return actionButtons.length ? actionButtons.join('') : '—';
+        }
+
+        function renderRow(row) {
+            return `
+                <tr data-member-code="${escapeHtml(row.code)}">
+                    <td>${escapeHtml(row.name)}</td>
+                    <td><strong>${escapeHtml(row.code)}</strong></td>
+                    <td>${row.totalHours} hrs</td>
+                    <td>${formatBadgeList(row.eligible)}</td>
+                    <td>${formatBadgeList(row.received)}</td>
+                    <td>${formatBadgeList(row.shouldReceive)}</td>
+                    <td><div class="action-buttons">${renderActionButtons(row)}</div></td>
+                </tr>
+            `;
+        }
+
+        function renderCurrentRows() {
+            const tbody = document.getElementById('badge-eligibility-tbody');
+            if (!_currentRows.length) {
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No members match this filter.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = _currentRows.map(renderRow).join('');
+        }
+
+        function findRenderedRowElement(memberCode) {
+            const tbody = document.getElementById('badge-eligibility-tbody');
+            const rows = tbody.querySelectorAll('tr[data-member-code]');
+            for (const row of rows) {
+                if (row.dataset.memberCode === memberCode) return row;
+            }
+            return null;
+        }
+
         async function checkSuperAdminAccess() {
             try {
                 const response = await fetch('/api/check-auth', { cache: 'no-store' });
@@ -117,16 +198,53 @@
 
         async function setBadgeReceived(memberCode, badge, received) {
             try {
-                await apiCall(`/api/members/${encodeURIComponent(memberCode)}/badges`, {
+                const result = await apiCall(`/api/members/${encodeURIComponent(memberCode)}/badges`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ badge, received })
                 });
+
+                const rowIndex = _currentRows.findIndex(row => row.code === memberCode);
+                if (rowIndex !== -1) {
+                    const row = _currentRows[rowIndex];
+                    if (result && result.badges) {
+                        row.received = {
+                            bronze: !!result.badges.bronze,
+                            silver: !!result.badges.silver,
+                            gold: !!result.badges.gold
+                        };
+                    } else {
+                        row.received[badge] = received;
+                    }
+                    row.shouldReceive = getShouldReceive(row.eligible, row.received);
+
+                    if (!rowMatchesCurrentFilter(row)) {
+                        _currentRows.splice(rowIndex, 1);
+                        const rowElement = findRenderedRowElement(memberCode);
+                        if (rowElement) {
+                            rowElement.remove();
+                            if (!_currentRows.length) {
+                                renderCurrentRows();
+                            }
+                        } else {
+                            renderCurrentRows();
+                        }
+                    } else {
+                        const rowElement = findRenderedRowElement(memberCode);
+                        if (rowElement) {
+                            rowElement.outerHTML = renderRow(row);
+                        } else {
+                            renderCurrentRows();
+                        }
+                    }
+                } else {
+                    await loadBadgeEligibility();
+                }
+
                 showMessage(
                     `${getBadgeText(badge)} ${received ? 'marked as received' : 'unmarked'} for ${memberCode}`,
                     'success'
                 );
-                await loadBadgeEligibility();
             } catch (error) {
                 console.error('Update badge failed:', error);
             }
@@ -207,47 +325,7 @@
                 const includeReceived = document.getElementById('include-received').checked;
                 const rows = await apiCall(`/api/badges/eligibility?badge=${encodeURIComponent(badge)}&includeReceived=${includeReceived}`);
                 _currentRows = rows;
-                const tbody = document.getElementById('badge-eligibility-tbody');
-
-                if (!rows.length) {
-                    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No members match this filter.</td></tr>';
-                    return;
-                }
-
-                tbody.innerHTML = rows.map(row => {
-                    const pendingBadges = Object.entries(row.shouldReceive).filter(([, v]) => !!v).map(([k]) => k);
-                    const receivedBadges = Object.entries(row.received).filter(([, v]) => !!v).map(([k]) => k);
-                    const actionButtons = [];
-
-                    if (_isSuperAdmin) {
-                        pendingBadges.forEach(badge => {
-                            actionButtons.push(
-                                `<button class="btn btn-primary btn-sm" onclick="markBadgeReceived('${row.code}', '${badge}')">Mark ${getBadgeText(badge)}</button>`
-                            );
-                        });
-                        receivedBadges.forEach(badge => {
-                            actionButtons.push(
-                                `<button class="btn btn-secondary btn-sm" onclick="unmarkBadgeReceived('${row.code}', '${badge}')">Unmark ${getBadgeText(badge)}</button>`
-                            );
-                        });
-
-                        if (pendingBadges.length > 1) {
-                            actionButtons.push(`<button class="btn btn-success btn-sm" onclick='markAllDueBadges("${row.code}", ${JSON.stringify(row.shouldReceive)})'>Mark All Due</button>`);
-                        }
-                    }
-
-                    return `
-                        <tr>
-                            <td>${escapeHtml(row.name)}</td>
-                            <td><strong>${escapeHtml(row.code)}</strong></td>
-                            <td>${row.totalHours} hrs</td>
-                            <td>${formatBadgeList(row.eligible)}</td>
-                            <td>${formatBadgeList(row.received)}</td>
-                            <td>${formatBadgeList(row.shouldReceive)}</td>
-                            <td><div class="action-buttons">${actionButtons.length ? actionButtons.join('') : '—'}</div></td>
-                        </tr>
-                    `;
-                }).join('');
+                renderCurrentRows();
             } catch (error) {
                 console.error('Failed to load badge eligibility:', error);
                 document.getElementById('badge-eligibility-tbody').innerHTML = '<tr><td colspan="7" class="empty-state">Failed to load badge eligibility.</td></tr>';
