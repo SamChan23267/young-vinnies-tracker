@@ -104,6 +104,26 @@
             };
         }
 
+        function cloneBadgeStatus(statusMap) {
+            return {
+                bronze: !!statusMap?.bronze,
+                silver: !!statusMap?.silver,
+                gold: !!statusMap?.gold
+            };
+        }
+
+        function cloneRow(row) {
+            return {
+                name: row.name,
+                code: row.code,
+                totalHours: row.totalHours,
+                eligible: cloneBadgeStatus(row.eligible),
+                received: cloneBadgeStatus(row.received),
+                shouldReceive: cloneBadgeStatus(row.shouldReceive),
+                _saving: !!row._saving
+            };
+        }
+
         function rowMatchesCurrentFilter(row) {
             const filterBadge = document.getElementById('badge-filter').value;
             const includeReceived = document.getElementById('include-received').checked;
@@ -121,6 +141,10 @@
         }
 
         function renderActionButtons(row) {
+            if (row._saving) {
+                return '<span>Saving...</span>';
+            }
+
             const pendingBadges = Object.entries(row.shouldReceive).filter(([, v]) => !!v).map(([k]) => k);
             const receivedBadges = Object.entries(row.received).filter(([, v]) => !!v).map(([k]) => k);
             const actionButtons = [];
@@ -177,6 +201,31 @@
             return null;
         }
 
+        function syncRenderedRow(rowIndex) {
+            const row = _currentRows[rowIndex];
+
+            if (!rowMatchesCurrentFilter(row)) {
+                _currentRows.splice(rowIndex, 1);
+                const rowElement = findRenderedRowElement(row.code);
+                if (rowElement) {
+                    rowElement.remove();
+                    if (!_currentRows.length) {
+                        renderCurrentRows();
+                    }
+                } else {
+                    renderCurrentRows();
+                }
+                return;
+            }
+
+            const rowElement = findRenderedRowElement(row.code);
+            if (rowElement) {
+                rowElement.outerHTML = renderRow(row);
+            } else {
+                renderCurrentRows();
+            }
+        }
+
         async function checkSuperAdminAccess() {
             try {
                 const response = await fetch('/api/check-auth', { cache: 'no-store' });
@@ -197,6 +246,18 @@
         }
 
         async function setBadgeReceived(memberCode, badge, received) {
+            const previousRows = _currentRows.map(cloneRow);
+            const originalRowIndex = _currentRows.findIndex(row => row.code === memberCode);
+            const hadOptimisticRow = originalRowIndex !== -1;
+
+            if (originalRowIndex !== -1) {
+                const row = _currentRows[originalRowIndex];
+                row.received[badge] = received;
+                row.shouldReceive = getShouldReceive(row.eligible, row.received);
+                row._saving = true;
+                syncRenderedRow(originalRowIndex);
+            }
+
             try {
                 const result = await apiCall(`/api/members/${encodeURIComponent(memberCode)}/badges`, {
                     method: 'POST',
@@ -208,36 +269,14 @@
                 if (rowIndex !== -1) {
                     const row = _currentRows[rowIndex];
                     if (result && result.badges) {
-                        row.received = {
-                            bronze: !!result.badges.bronze,
-                            silver: !!result.badges.silver,
-                            gold: !!result.badges.gold
-                        };
+                        row.received = cloneBadgeStatus(result.badges);
                     } else {
                         row.received[badge] = received;
                     }
                     row.shouldReceive = getShouldReceive(row.eligible, row.received);
-
-                    if (!rowMatchesCurrentFilter(row)) {
-                        _currentRows.splice(rowIndex, 1);
-                        const rowElement = findRenderedRowElement(memberCode);
-                        if (rowElement) {
-                            rowElement.remove();
-                            if (!_currentRows.length) {
-                                renderCurrentRows();
-                            }
-                        } else {
-                            renderCurrentRows();
-                        }
-                    } else {
-                        const rowElement = findRenderedRowElement(memberCode);
-                        if (rowElement) {
-                            rowElement.outerHTML = renderRow(row);
-                        } else {
-                            renderCurrentRows();
-                        }
-                    }
-                } else {
+                    row._saving = false;
+                    syncRenderedRow(rowIndex);
+                } else if (!hadOptimisticRow) {
                     await loadBadgeEligibility();
                 }
 
@@ -247,6 +286,8 @@
                 );
             } catch (error) {
                 console.error('Update badge failed:', error);
+                _currentRows = previousRows;
+                renderCurrentRows();
             }
         }
 
@@ -324,7 +365,7 @@
                 const badge = document.getElementById('badge-filter').value;
                 const includeReceived = document.getElementById('include-received').checked;
                 const rows = await apiCall(`/api/badges/eligibility?badge=${encodeURIComponent(badge)}&includeReceived=${includeReceived}`);
-                _currentRows = rows;
+                _currentRows = rows.map(row => ({ ...row, _saving: false }));
                 renderCurrentRows();
             } catch (error) {
                 console.error('Failed to load badge eligibility:', error);
