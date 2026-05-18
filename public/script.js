@@ -631,6 +631,10 @@ if (!window.location.pathname.endsWith('login.html')) {
                 if (navAdmin) {
                     navAdmin.style.display = 'block';
                 }
+                const navBadges = document.getElementById('nav-badge-eligibility');
+                if (navBadges) {
+                    navBadges.style.display = 'block';
+                }
             }
         } catch (error) {
             console.error('Nav init failed:', error);
