@@ -787,8 +787,9 @@ app.get('/api/badges/eligibility/csv', requireAuth, async (req, res) => {
     csv += csvEscape(getDueSummaryLine('silver', 'Silver')) + '\n';
     csv += csvEscape(getDueSummaryLine('bronze', 'Bronze')) + '\n';
 
+    const exportDate = new Date().toISOString().slice(0, 10);
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename=badge_eligibility.csv');
+    res.setHeader('Content-Disposition', `attachment; filename=badge_eligibility_${exportDate}.csv`);
     res.send(csv);
   } catch (error) {
     res.status(500).json({ error: 'Failed to export badge eligibility CSV' });
