@@ -47,8 +47,10 @@
                             Include already received
                         </label>
                     </div>
-                    <div class="form-group" style="display:flex;align-items:flex-end;">
+                    <div class="form-group" style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;">
                         <button class="btn btn-primary" id="reload-badges-btn">Refresh</button>
+                        <button class="btn btn-success" id="mark-all-everyone-btn" title="Mark all pending badges as received for every member currently shown">🏅 Mark All (Everyone)</button>
+                        <button class="btn btn-secondary" id="export-csv-btn" title="Download badge eligibility table as a spreadsheet">📥 Export CSV</button>
                     </div>
                 </div>
                 <div class="table-section">
@@ -114,21 +116,6 @@
             }
         }
 
-        async function checkMemberBadges(memberCode, badge = 'all') {
-            try {
-                const data = await apiCall(`/api/members/${encodeURIComponent(memberCode)}/badges?badge=${encodeURIComponent(badge)}`);
-                if (badge === 'all') {
-                    const parts = Object.entries(data.received)
-                        .map(([k, v]) => `${getBadgeText(k)}: ${v ? 'received' : 'not received'}`);
-                    showMessage(`${memberCode} → ${parts.join(' | ')}`, 'success');
-                } else {
-                    showMessage(`${memberCode} ${getBadgeText(badge)}: ${data.received ? 'received' : 'not received'}`, 'success');
-                }
-            } catch (error) {
-                console.error('Badge check failed:', error);
-            }
-        }
-
         async function markBadgeReceived(memberCode, badge) {
             try {
                 await apiCall(`/api/members/${encodeURIComponent(memberCode)}/badges`, {
@@ -162,11 +149,52 @@
             }
         }
 
+        // The currently loaded rows (for Mark All Everyone)
+        let _currentRows = [];
+
+        async function markAllEveryone() {
+            const pending = _currentRows.filter(row =>
+                row.shouldReceive.bronze || row.shouldReceive.silver || row.shouldReceive.gold
+            );
+            if (!pending.length) {
+                showMessage('No pending badges to award for any visible member.', 'error');
+                return;
+            }
+            const total = pending.reduce((sum, row) =>
+                sum + Object.values(row.shouldReceive).filter(Boolean).length, 0);
+            if (!confirm(`This will mark ${total} badge(s) as received across ${pending.length} member(s). Continue?`)) return;
+
+            try {
+                await Promise.all(
+                    pending.flatMap(row =>
+                        Object.entries(row.shouldReceive)
+                            .filter(([, v]) => !!v)
+                            .map(([badge]) => apiCall(`/api/members/${encodeURIComponent(row.code)}/badges`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ badge, received: true })
+                            }))
+                    )
+                );
+                showMessage(`Awarded ${total} badge(s) across ${pending.length} member(s)!`, 'success');
+                await loadBadgeEligibility();
+            } catch (error) {
+                console.error('Mark all everyone failed:', error);
+            }
+        }
+
+        function exportCSV() {
+            const badge = document.getElementById('badge-filter').value;
+            const includeReceived = document.getElementById('include-received').checked;
+            window.location.href = `/api/badges/eligibility/csv?badge=${encodeURIComponent(badge)}&includeReceived=${includeReceived}`;
+        }
+
         async function loadBadgeEligibility() {
             try {
                 const badge = document.getElementById('badge-filter').value;
                 const includeReceived = document.getElementById('include-received').checked;
                 const rows = await apiCall(`/api/badges/eligibility?badge=${encodeURIComponent(badge)}&includeReceived=${includeReceived}`);
+                _currentRows = rows;
                 const tbody = document.getElementById('badge-eligibility-tbody');
 
                 if (!rows.length) {
@@ -177,8 +205,6 @@
                 tbody.innerHTML = rows.map(row => {
                     const pendingBadges = Object.entries(row.shouldReceive).filter(([, v]) => !!v).map(([k]) => k);
                     const actionButtons = [];
-
-                    actionButtons.push(`<button class="btn btn-secondary btn-sm" onclick="checkMemberBadges('${row.code}', 'all')">Check All</button>`);
 
                     pendingBadges.forEach(badge => {
                         actionButtons.push(
@@ -198,7 +224,7 @@
                             <td>${formatBadgeList(row.eligible)}</td>
                             <td>${formatBadgeList(row.received)}</td>
                             <td>${formatBadgeList(row.shouldReceive)}</td>
-                            <td><div class="action-buttons">${actionButtons.join('')}</div></td>
+                            <td><div class="action-buttons">${actionButtons.length ? actionButtons.join('') : '—'}</div></td>
                         </tr>
                     `;
                 }).join('');
@@ -211,6 +237,8 @@
         document.getElementById('reload-badges-btn').addEventListener('click', loadBadgeEligibility);
         document.getElementById('badge-filter').addEventListener('change', loadBadgeEligibility);
         document.getElementById('include-received').addEventListener('change', loadBadgeEligibility);
+        document.getElementById('mark-all-everyone-btn').addEventListener('click', markAllEveryone);
+        document.getElementById('export-csv-btn').addEventListener('click', exportCSV);
 
         checkSuperAdminAccess().then(allowed => {
             if (allowed) loadBadgeEligibility();

@@ -698,6 +698,69 @@ app.get('/api/badges/eligibility', requireSuperAdmin, async (req, res) => {
   }
 });
 
+// GET /api/badges/eligibility/csv - Download badge eligibility table as a CSV spreadsheet
+app.get('/api/badges/eligibility/csv', requireSuperAdmin, async (req, res) => {
+  try {
+    const data = await readData();
+    const filterBadge = getNormalizedBadgeType(req.query.badge) || 'all';
+    const includeReceived = req.query.includeReceived === 'true';
+
+    const csvEscape = (val) => {
+      const str = String(val == null ? '' : val);
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return '"' + str.replace(/"/g, '""') + '"';
+      }
+      return str;
+    };
+
+    const badgeRows = data.members.map(member => {
+      const totalHours = calculateMemberTotalHours(data, member.code);
+      const eligible = getEligibleBadgeStatus(totalHours);
+      const received = getMemberBadgeStatus(member);
+      const shouldReceive = {
+        bronze: eligible.bronze && !received.bronze,
+        silver: eligible.silver && !received.silver,
+        gold: eligible.gold && !received.gold
+      };
+      return { name: member.name, code: member.code, totalHours, eligible, received, shouldReceive };
+    }).sort((a, b) => b.totalHours - a.totalHours);
+
+    const filteredRows = badgeRows.filter(row => {
+      const hasPending = row.shouldReceive.bronze || row.shouldReceive.silver || row.shouldReceive.gold;
+      if (filterBadge === 'all') {
+        return includeReceived ? (hasPending || row.received.bronze || row.received.silver || row.received.gold) : hasPending;
+      }
+      return includeReceived ? (row.eligible[filterBadge] || row.received[filterBadge]) : row.shouldReceive[filterBadge];
+    });
+
+    const yesNo = (v) => v ? 'Yes' : 'No';
+
+    let csv = 'Name,Code,Total Hours,Eligible Bronze,Eligible Silver,Eligible Gold,Received Bronze,Received Silver,Received Gold,Needs Bronze,Needs Silver,Needs Gold\n';
+    filteredRows.forEach(row => {
+      csv += [
+        csvEscape(row.name),
+        csvEscape(row.code),
+        row.totalHours,
+        yesNo(row.eligible.bronze),
+        yesNo(row.eligible.silver),
+        yesNo(row.eligible.gold),
+        yesNo(row.received.bronze),
+        yesNo(row.received.silver),
+        yesNo(row.received.gold),
+        yesNo(row.shouldReceive.bronze),
+        yesNo(row.shouldReceive.silver),
+        yesNo(row.shouldReceive.gold)
+      ].join(',') + '\n';
+    });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=badge_eligibility.csv');
+    res.send(csv);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to export badge eligibility CSV' });
+  }
+});
+
 // GET /api/members/:code/badges - Check received badge state (single badge or all)
 app.get('/api/members/:code/badges', requireSuperAdmin, async (req, res) => {
   try {
