@@ -255,6 +255,26 @@ function calculateMemberTotalHours(data, memberCode) {
   return hours + (member?.manualHours || 0);
 }
 
+function calculateAllMemberTotalHours(data) {
+  const totals = {};
+
+  data.members.forEach(member => {
+    totals[member.code] = member.manualHours || 0;
+  });
+
+  data.sessions.forEach(session => {
+    const sessionHours = session.hours || 1;
+    session.attendees.forEach(memberCode => {
+      const individualHours = session.individualHours && session.individualHours[memberCode]
+        ? session.individualHours[memberCode]
+        : sessionHours;
+      totals[memberCode] = (totals[memberCode] || 0) + individualHours;
+    });
+  });
+
+  return totals;
+}
+
 function getEligibleBadgeStatus(totalHours) {
   return {
     bronze: totalHours >= BADGE_TIERS.bronze.minHours,
@@ -640,9 +660,10 @@ app.get('/api/public/members', async (req, res) => {
   try {
     const data = await readData();
     const members = data.members.filter(m => !m.hiddenFromPublic);
+    const totals = calculateAllMemberTotalHours(data);
     // Calculate total hours for each member
     const membersWithHours = members.map(m => {
-      const hours = calculateMemberTotalHours(data, m.code);
+      const hours = totals[m.code] || 0;
       return { name: m.name, totalHours: hours };
     });
     // Sort by hours descending
@@ -657,6 +678,7 @@ app.get('/api/public/members', async (req, res) => {
 app.get('/api/badges/eligibility', requireAuth, async (req, res) => {
   try {
     const data = await readData();
+    const totals = calculateAllMemberTotalHours(data);
     const filterBadge = getNormalizedBadgeType(req.query.badge);
     const includeReceived = req.query.includeReceived === 'true';
 
@@ -665,7 +687,7 @@ app.get('/api/badges/eligibility', requireAuth, async (req, res) => {
     }
 
     const badgeRows = data.members.map(member => {
-      const totalHours = calculateMemberTotalHours(data, member.code);
+      const totalHours = totals[member.code] || 0;
       const eligible = getEligibleBadgeStatus(totalHours);
       const received = getMemberBadgeStatus(member);
       const shouldReceive = {
@@ -702,6 +724,7 @@ app.get('/api/badges/eligibility', requireAuth, async (req, res) => {
 app.get('/api/badges/eligibility/csv', requireAuth, async (req, res) => {
   try {
     const data = await readData();
+    const totals = calculateAllMemberTotalHours(data);
     const filterBadge = getNormalizedBadgeType(req.query.badge) || 'all';
     const includeReceived = req.query.includeReceived === 'true';
 
@@ -714,7 +737,7 @@ app.get('/api/badges/eligibility/csv', requireAuth, async (req, res) => {
     };
 
     const badgeRows = data.members.map(member => {
-      const totalHours = calculateMemberTotalHours(data, member.code);
+      const totalHours = totals[member.code] || 0;
       const eligible = getEligibleBadgeStatus(totalHours);
       const received = getMemberBadgeStatus(member);
       const shouldReceive = {
