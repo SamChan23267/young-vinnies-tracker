@@ -680,7 +680,6 @@ app.get('/api/badges/eligibility', requireAuth, async (req, res) => {
     const data = await readData();
     const totals = calculateAllMemberTotalHours(data);
     const filterBadge = getNormalizedBadgeType(req.query.badge);
-    const includeReceived = req.query.includeReceived === 'true';
 
     if (!filterBadge) {
       return res.status(400).json({ error: 'Invalid badge filter. Use bronze, silver, gold, or all.' });
@@ -709,9 +708,9 @@ app.get('/api/badges/eligibility', requireAuth, async (req, res) => {
     const filteredRows = badgeRows.filter(row => {
       const hasPending = row.shouldReceive.bronze || row.shouldReceive.silver || row.shouldReceive.gold;
       if (filterBadge === 'all') {
-        return includeReceived ? (hasPending || row.received.bronze || row.received.silver || row.received.gold) : hasPending;
+        return hasPending || row.received.bronze || row.received.silver || row.received.gold;
       }
-      return includeReceived ? (row.eligible[filterBadge] || row.received[filterBadge]) : row.shouldReceive[filterBadge];
+      return row.shouldReceive[filterBadge] || row.received[filterBadge];
     });
 
     res.json(filteredRows);
