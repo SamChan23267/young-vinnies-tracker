@@ -115,18 +115,29 @@
             }
         }
 
-        async function markBadgeReceived(memberCode, badge) {
+        async function setBadgeReceived(memberCode, badge, received) {
             try {
                 await apiCall(`/api/members/${encodeURIComponent(memberCode)}/badges`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ badge, received: true })
+                    body: JSON.stringify({ badge, received })
                 });
-                showMessage(`${getBadgeText(badge)} marked as received for ${memberCode}`, 'success');
+                showMessage(
+                    `${getBadgeText(badge)} ${received ? 'marked as received' : 'unmarked'} for ${memberCode}`,
+                    'success'
+                );
                 await loadBadgeEligibility();
             } catch (error) {
-                console.error('Mark badge failed:', error);
+                console.error('Update badge failed:', error);
             }
+        }
+
+        async function markBadgeReceived(memberCode, badge) {
+            return setBadgeReceived(memberCode, badge, true);
+        }
+
+        async function unmarkBadgeReceived(memberCode, badge) {
+            return setBadgeReceived(memberCode, badge, false);
         }
 
         async function markAllDueBadges(memberCode, shouldReceive) {
@@ -203,12 +214,18 @@
 
                 tbody.innerHTML = rows.map(row => {
                     const pendingBadges = Object.entries(row.shouldReceive).filter(([, v]) => !!v).map(([k]) => k);
+                    const receivedBadges = Object.entries(row.received).filter(([, v]) => !!v).map(([k]) => k);
                     const actionButtons = [];
 
                     if (_isSuperAdmin) {
                         pendingBadges.forEach(badge => {
                             actionButtons.push(
                                 `<button class="btn btn-primary btn-sm" onclick="markBadgeReceived('${row.code}', '${badge}')">Mark ${getBadgeText(badge)}</button>`
+                            );
+                        });
+                        receivedBadges.forEach(badge => {
+                            actionButtons.push(
+                                `<button class="btn btn-secondary btn-sm" onclick="unmarkBadgeReceived('${row.code}', '${badge}')">Unmark ${getBadgeText(badge)}</button>`
                             );
                         });
 
