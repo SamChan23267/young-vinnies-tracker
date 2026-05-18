@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Badge Eligibility - Young Vinnies Tracker</title>
+    <link rel="stylesheet" href="style.css?v=2">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌟 Young Vinnies Volunteer Hour Tracker</h1>
+            <p>Badge Eligibility</p>
+        </header>
+
+        <nav class="main-nav">
+            <ul>
+                <li><a href="index.html">🏠 Dashboard</a></li>
+                <li><a href="public-hours.html">🌟 Leaderboard</a></li>
+                <li><a href="members.html">👥 Members</a></li>
+                <li><a href="sessions.html">📅 Sessions</a></li>
+                <li><a href="export.html">📊 Export Data</a></li>
+                <li><a href="settings.html">⚙️ Settings</a></li>
+                <li id="nav-audit" style="display: none;"><a href="audit-log.html">🔐 Audit Log</a></li>
+                <li id="nav-login-attempts" style="display: none;"><a href="login-attempts.html">🧾 Login Attempts</a></li>
+                <li id="nav-admin-management" style="display: none;"><a href="admin-management.html">👤 User Management</a></li>
+                <li id="nav-badge-eligibility"><a href="badge-eligibility.html" class="active">🏅 Badge Eligibility</a></li>
+            </ul>
+        </nav>
+
+        <main>
+            <section class="card">
+                <h2>🏅 Members Who Should Receive Badges</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="badge-filter">Badge filter:</label>
+                        <select id="badge-filter" class="form-select">
+                            <option value="all">All badges</option>
+                            <option value="bronze">Bronze only</option>
+                            <option value="silver">Silver only</option>
+                            <option value="gold">Gold only</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-label" style="margin-top: 34px;">
+                            <input type="checkbox" id="include-received">
+                            Include already received
+                        </label>
+                    </div>
+                    <div class="form-group" style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;">
+                        <button class="btn btn-primary" id="reload-badges-btn">Refresh</button>
+                        <button class="btn btn-success" id="mark-all-everyone-btn" title="Mark all pending badges as received for every member currently shown">🏅 Mark All (Everyone)</button>
+                        <button class="btn btn-secondary" id="export-csv-btn" title="Download badge eligibility table as a spreadsheet">📥 Export CSV</button>
+                    </div>
+                </div>
+                <div class="table-section">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Code</th>
+                                <th>Total Hours</th>
+                                <th>Eligible</th>
+                                <th>Received</th>
+                                <th>Needs Award</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="badge-eligibility-tbody">
+                            <tr><td colspan="7" class="empty-state">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2026 Young Vinnies Volunteer Hour Tracker</p>
+        </footer>
+    </div>
+
+    <div id="message-container"></div>
+    <script src="script.js?v=2"></script>
+    <script>
+        function getBadgeText(badgeKey) {
+            if (badgeKey === 'bronze') return '🥉 Bronze';
+            if (badgeKey === 'silver') return '🥈 Silver';
+            if (badgeKey === 'gold') return '🥇 Gold';
+            return badgeKey;
+        }
+
+        function formatBadgeList(statusMap) {
+            const items = Object.entries(statusMap)
+                .filter(([, val]) => !!val)
+                .map(([badge]) => getBadgeText(badge));
+            return items.length ? items.join(', ') : '—';
+        }
+
+        async function checkSuperAdminAccess() {
+            try {
+                const response = await fetch('/api/check-auth', { cache: 'no-store' });
+                if (!response.ok) {
+                    window.location.href = '/login.html';
+                    return null;
+                }
+                const data = await response.json();
+                if (!data.authenticated) {
+                    window.location.href = '/login.html';
+                    return null;
+                }
+                return data.role;
+            } catch (error) {
+                window.location.href = '/login.html';
+                return null;
+            }
+        }
+
+        async function setBadgeReceived(memberCode, badge, received) {
+            try {
+                await apiCall(`/api/members/${encodeURIComponent(memberCode)}/badges`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ badge, received })
+                });
+                showMessage(
+                    `${getBadgeText(badge)} ${received ? 'marked as received' : 'unmarked'} for ${memberCode}`,
+                    'success'
+                );
+                await loadBadgeEligibility();
+            } catch (error) {
+                console.error('Update badge failed:', error);
+            }
+        }
+
+        async function markBadgeReceived(memberCode, badge) {
+            return setBadgeReceived(memberCode, badge, true);
+        }
+
+        async function unmarkBadgeReceived(memberCode, badge) {
+            return setBadgeReceived(memberCode, badge, false);
+        }
+
+        async function markAllDueBadges(memberCode, shouldReceive) {
+            const pending = Object.entries(shouldReceive).filter(([, v]) => !!v).map(([k]) => k);
+            if (!pending.length) {
+                showMessage('No pending badges to mark for this member.', 'error');
+                return;
+            }
+            try {
+                for (const badge of pending) {
+                    await apiCall(`/api/members/${encodeURIComponent(memberCode)}/badges`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ badge, received: true })
+                    });
+                }
+                showMessage(`Marked ${pending.length} badge(s) as received for ${memberCode}`, 'success');
+                await loadBadgeEligibility();
+            } catch (error) {
+                console.error('Mark all badges failed:', error);
+            }
+        }
+
+        // The currently loaded rows (for Mark All Everyone)
+        let _currentRows = [];
+
+        async function markAllEveryone() {
+            const pending = _currentRows.filter(row =>
+                row.shouldReceive.bronze || row.shouldReceive.silver || row.shouldReceive.gold
+            );
+            if (!pending.length) {
+                showMessage('No pending badges to award for any visible member.', 'error');
+                return;
+            }
+            const total = pending.reduce((sum, row) =>
+                sum + Object.values(row.shouldReceive).filter(Boolean).length, 0);
+            if (!confirm(`This will mark ${total} badge(s) as received across ${pending.length} member(s). Continue?`)) return;
+
+            try {
+                await Promise.all(
+                    pending.flatMap(row =>
+                        Object.entries(row.shouldReceive)
+                            .filter(([, v]) => !!v)
+                            .map(([badge]) => apiCall(`/api/members/${encodeURIComponent(row.code)}/badges`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ badge, received: true })
+                            }))
+                    )
+                );
+                showMessage(`Awarded ${total} badge(s) across ${pending.length} member(s)!`, 'success');
+                await loadBadgeEligibility();
+            } catch (error) {
+                console.error('Mark all everyone failed:', error);
+            }
+        }
+
+        function exportCSV() {
+            const badge = document.getElementById('badge-filter').value;
+            const includeReceived = document.getElementById('include-received').checked;
+            window.location.href = `/api/badges/eligibility/csv?badge=${encodeURIComponent(badge)}&includeReceived=${includeReceived}`;
+        }
+
+        async function loadBadgeEligibility() {
+            try {
+                const badge = document.getElementById('badge-filter').value;
+                const includeReceived = document.getElementById('include-received').checked;
+                const rows = await apiCall(`/api/badges/eligibility?badge=${encodeURIComponent(badge)}&includeReceived=${includeReceived}`);
+                _currentRows = rows;
+                const tbody = document.getElementById('badge-eligibility-tbody');
+
+                if (!rows.length) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No members match this filter.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = rows.map(row => {
+                    const pendingBadges = Object.entries(row.shouldReceive).filter(([, v]) => !!v).map(([k]) => k);
+                    const receivedBadges = Object.entries(row.received).filter(([, v]) => !!v).map(([k]) => k);
+                    const actionButtons = [];
+
+                    if (_isSuperAdmin) {
+                        pendingBadges.forEach(badge => {
+                            actionButtons.push(
+                                `<button class="btn btn-primary btn-sm" onclick="markBadgeReceived('${row.code}', '${badge}')">Mark ${getBadgeText(badge)}</button>`
+                            );
+                        });
+                        receivedBadges.forEach(badge => {
+                            actionButtons.push(
+                                `<button class="btn btn-secondary btn-sm" onclick="unmarkBadgeReceived('${row.code}', '${badge}')">Unmark ${getBadgeText(badge)}</button>`
+                            );
+                        });
+
+                        if (pendingBadges.length > 1) {
+                            actionButtons.push(`<button class="btn btn-success btn-sm" onclick='markAllDueBadges("${row.code}", ${JSON.stringify(row.shouldReceive)})'>Mark All Due</button>`);
+                        }
+                    }
+
+                    return `
+                        <tr>
+                            <td>${escapeHtml(row.name)}</td>
+                            <td><strong>${escapeHtml(row.code)}</strong></td>
+                            <td>${row.totalHours} hrs</td>
+                            <td>${formatBadgeList(row.eligible)}</td>
+                            <td>${formatBadgeList(row.received)}</td>
+                            <td>${formatBadgeList(row.shouldReceive)}</td>
+                            <td><div class="action-buttons">${actionButtons.length ? actionButtons.join('') : '—'}</div></td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Failed to load badge eligibility:', error);
+                document.getElementById('badge-eligibility-tbody').innerHTML = '<tr><td colspan="7" class="empty-state">Failed to load badge eligibility.</td></tr>';
+            }
+        }
+
+        // isSuperAdmin controls whether mutation buttons are rendered
+        let _isSuperAdmin = false;
+
+        document.getElementById('reload-badges-btn').addEventListener('click', loadBadgeEligibility);
+        document.getElementById('badge-filter').addEventListener('change', loadBadgeEligibility);
+        document.getElementById('include-received').addEventListener('change', loadBadgeEligibility);
+        document.getElementById('mark-all-everyone-btn').addEventListener('click', markAllEveryone);
+        document.getElementById('export-csv-btn').addEventListener('click', exportCSV);
+
+        checkSuperAdminAccess().then(role => {
+            if (!role) return;
+            _isSuperAdmin = role === 'super_admin' || role === 'sam';
+            // Hide mutation buttons for regular admins
+            if (!_isSuperAdmin) {
+                document.getElementById('mark-all-everyone-btn').style.display = 'none';
+            }
+            loadBadgeEligibility();
+        });
+    </script>
+    <script>
+        window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
+    <script>
+        window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/speed-insights/script.js"></script>
+</body>
+</html>

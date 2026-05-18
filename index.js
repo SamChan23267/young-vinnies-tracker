@@ -91,7 +91,7 @@ app.use((req, res, next) => {
   }
 
   // For main pages, check authentication
-  const protectedPages = ['/', '/index.html', '/session.html', '/audit-log.html', '/login-attempts.html', '/members.html', '/sessions.html', '/export.html', '/settings.html', '/admin-management.html'];
+  const protectedPages = ['/', '/index.html', '/session.html', '/audit-log.html', '/login-attempts.html', '/members.html', '/sessions.html', '/export.html', '/settings.html', '/admin-management.html', '/badge-eligibility.html'];
   if (protectedPages.includes(req.path)) {
     if (!req.session.authenticated) {
       return res.redirect('/login.html');
@@ -214,6 +214,62 @@ function isSamRole(role) {
 // Helper function to get display role (hides sam role)
 function getDisplayRole(role) {
   return role === 'sam' ? 'super_admin' : role;
+}
+
+const BADGE_TIERS = {
+  bronze: { minHours: 20 },
+  silver: { minHours: 40 },
+  gold: { minHours: 60 }
+};
+
+function getDefaultBadgeStatus() {
+  return {
+    bronze: false,
+    silver: false,
+    gold: false
+  };
+}
+
+function getMemberBadgeStatus(member) {
+  const badges = member?.badges || {};
+  return {
+    bronze: !!badges.bronze,
+    silver: !!badges.silver,
+    gold: !!badges.gold
+  };
+}
+
+function calculateMemberTotalHours(data, memberCode) {
+  let hours = 0;
+  data.sessions.forEach(session => {
+    const sessionHours = session.hours || 1;
+    if (session.attendees.includes(memberCode)) {
+      const individualHours = session.individualHours && session.individualHours[memberCode]
+        ? session.individualHours[memberCode]
+        : sessionHours;
+      hours += individualHours;
+    }
+  });
+
+  const member = data.members.find(m => m.code === memberCode);
+  return hours + (member?.manualHours || 0);
+}
+
+function getEligibleBadgeStatus(totalHours) {
+  return {
+    bronze: totalHours >= BADGE_TIERS.bronze.minHours,
+    silver: totalHours >= BADGE_TIERS.silver.minHours,
+    gold: totalHours >= BADGE_TIERS.gold.minHours
+  };
+}
+
+function getNormalizedBadgeType(badge) {
+  if (!badge) return 'all';
+  const normalized = String(badge).toLowerCase();
+  if (normalized === 'all' || normalized === 'bronze' || normalized === 'silver' || normalized === 'gold') {
+    return normalized;
+  }
+  return null;
 }
 
 // Helper function to read users, auto-migrating any legacy plaintext passwords to bcrypt hashes
@@ -586,16 +642,7 @@ app.get('/api/public/members', async (req, res) => {
     const members = data.members.filter(m => !m.hiddenFromPublic);
     // Calculate total hours for each member
     const membersWithHours = members.map(m => {
-      let hours = 0;
-      data.sessions.forEach(session => {
-        const sessionHours = session.hours || 1;
-        if (session.attendees.includes(m.code)) {
-          const individualHours = session.individualHours && session.individualHours[m.code]
-            ? session.individualHours[m.code] : sessionHours;
-          hours += individualHours;
-        }
-      });
-      hours += (m.manualHours || 0);
+      const hours = calculateMemberTotalHours(data, m.code);
       return { name: m.name, totalHours: hours };
     });
     // Sort by hours descending
@@ -603,6 +650,204 @@ app.get('/api/public/members', async (req, res) => {
     res.json(membersWithHours);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch public members' });
+  }
+});
+
+// GET /api/badges/eligibility - Badge eligibility and receipt status (super admin & sam)
+app.get('/api/badges/eligibility', requireAuth, async (req, res) => {
+  try {
+    const data = await readData();
+    const filterBadge = getNormalizedBadgeType(req.query.badge);
+    const includeReceived = req.query.includeReceived === 'true';
+
+    if (!filterBadge) {
+      return res.status(400).json({ error: 'Invalid badge filter. Use bronze, silver, gold, or all.' });
+    }
+
+    const badgeRows = data.members.map(member => {
+      const totalHours = calculateMemberTotalHours(data, member.code);
+      const eligible = getEligibleBadgeStatus(totalHours);
+      const received = getMemberBadgeStatus(member);
+      const shouldReceive = {
+        bronze: eligible.bronze && !received.bronze,
+        silver: eligible.silver && !received.silver,
+        gold: eligible.gold && !received.gold
+      };
+
+      return {
+        name: member.name,
+        code: member.code,
+        totalHours,
+        eligible,
+        received,
+        shouldReceive
+      };
+    }).sort((a, b) => b.totalHours - a.totalHours);
+
+    const filteredRows = badgeRows.filter(row => {
+      const hasPending = row.shouldReceive.bronze || row.shouldReceive.silver || row.shouldReceive.gold;
+      if (filterBadge === 'all') {
+        return includeReceived ? (hasPending || row.received.bronze || row.received.silver || row.received.gold) : hasPending;
+      }
+      return includeReceived ? (row.eligible[filterBadge] || row.received[filterBadge]) : row.shouldReceive[filterBadge];
+    });
+
+    res.json(filteredRows);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch badge eligibility' });
+  }
+});
+
+// GET /api/badges/eligibility/csv - Download badge eligibility table as a CSV spreadsheet
+app.get('/api/badges/eligibility/csv', requireAuth, async (req, res) => {
+  try {
+    const data = await readData();
+    const filterBadge = getNormalizedBadgeType(req.query.badge) || 'all';
+    const includeReceived = req.query.includeReceived === 'true';
+
+    const csvEscape = (val) => {
+      const str = String(val == null ? '' : val);
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return '"' + str.replace(/"/g, '""') + '"';
+      }
+      return str;
+    };
+
+    const badgeRows = data.members.map(member => {
+      const totalHours = calculateMemberTotalHours(data, member.code);
+      const eligible = getEligibleBadgeStatus(totalHours);
+      const received = getMemberBadgeStatus(member);
+      const shouldReceive = {
+        bronze: eligible.bronze && !received.bronze,
+        silver: eligible.silver && !received.silver,
+        gold: eligible.gold && !received.gold
+      };
+      return { name: member.name, code: member.code, totalHours, eligible, received, shouldReceive };
+    }).sort((a, b) => b.totalHours - a.totalHours);
+
+    const filteredRows = badgeRows.filter(row => {
+      const hasPending = row.shouldReceive.bronze || row.shouldReceive.silver || row.shouldReceive.gold;
+      if (filterBadge === 'all') {
+        return includeReceived ? (hasPending || row.received.bronze || row.received.silver || row.received.gold) : hasPending;
+      }
+      return includeReceived ? (row.eligible[filterBadge] || row.received[filterBadge]) : row.shouldReceive[filterBadge];
+    });
+
+    const yesNo = (v) => v ? 'Yes' : 'No';
+
+    let csv = 'Name,Code,Total Hours,Eligible Bronze,Eligible Silver,Eligible Gold,Received Bronze,Received Silver,Received Gold,Needs Bronze,Needs Silver,Needs Gold\n';
+    filteredRows.forEach(row => {
+      csv += [
+        csvEscape(row.name),
+        csvEscape(row.code),
+        row.totalHours,
+        yesNo(row.eligible.bronze),
+        yesNo(row.eligible.silver),
+        yesNo(row.eligible.gold),
+        yesNo(row.received.bronze),
+        yesNo(row.received.silver),
+        yesNo(row.received.gold),
+        yesNo(row.shouldReceive.bronze),
+        yesNo(row.shouldReceive.silver),
+        yesNo(row.shouldReceive.gold)
+      ].join(',') + '\n';
+    });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=badge_eligibility.csv');
+    res.send(csv);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to export badge eligibility CSV' });
+  }
+});
+
+// GET /api/members/:code/badges - Check received badge state (single badge or all)
+app.get('/api/members/:code/badges', requireAuth, async (req, res) => {
+  try {
+    const { code } = req.params;
+    const badge = getNormalizedBadgeType(req.query.badge);
+    if (!badge) {
+      return res.status(400).json({ error: 'Invalid badge. Use bronze, silver, gold, or all.' });
+    }
+
+    const data = await readData();
+    const member = data.members.find(m => m.code === code);
+    if (!member) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+
+    const totalHours = calculateMemberTotalHours(data, code);
+    const eligible = getEligibleBadgeStatus(totalHours);
+    const received = getMemberBadgeStatus(member);
+
+    if (badge === 'all') {
+      return res.json({
+        code,
+        totalHours,
+        eligible,
+        received
+      });
+    }
+
+    return res.json({
+      code,
+      badge,
+      totalHours,
+      eligible: eligible[badge],
+      received: received[badge]
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch member badge status' });
+  }
+});
+
+// POST /api/members/:code/badges - Mark badge(s) as received (single badge or all)
+app.post('/api/members/:code/badges', requireSuperAdmin, async (req, res) => {
+  try {
+    const { code } = req.params;
+    const badge = getNormalizedBadgeType(req.body.badge);
+    const receivedValue = req.body.received !== undefined ? !!req.body.received : true;
+    const { skipLog } = req.body;
+
+    if (!badge) {
+      return res.status(400).json({ error: 'Invalid badge. Use bronze, silver, gold, or all.' });
+    }
+
+    const data = await readData();
+    const memberIndex = data.members.findIndex(m => m.code === code);
+    if (memberIndex === -1) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+
+    const currentStatus = getMemberBadgeStatus(data.members[memberIndex]);
+    const updatedStatus = { ...currentStatus };
+
+    if (badge === 'all') {
+      updatedStatus.bronze = receivedValue;
+      updatedStatus.silver = receivedValue;
+      updatedStatus.gold = receivedValue;
+    } else {
+      updatedStatus[badge] = receivedValue;
+    }
+
+    data.members[memberIndex].badges = updatedStatus;
+    await writeData(data);
+
+    await logAudit('UPDATE_BADGES', {
+      member: data.members[memberIndex].name,
+      code,
+      badge,
+      received: receivedValue,
+      badges: updatedStatus
+    }, req.session.username, skipLog);
+
+    res.json({
+      success: true,
+      code,
+      badges: updatedStatus
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update badge status' });
   }
 });
 
@@ -636,7 +881,8 @@ app.post('/api/members', requireAuth, async (req, res) => {
       code,
       yearLevel: yearLevel || '',
       email: email || '',
-      manualHours: 0  // Initialize manual hours
+      manualHours: 0,  // Initialize manual hours
+      badges: getDefaultBadgeStatus()
     };
     
     data.members.push(newMember);
@@ -677,16 +923,18 @@ app.put('/api/members/:code', requireAuth, async (req, res) => {
     const oldMember = { ...data.members[memberIndex] };
     const updatedCode = newCode || code;
     
-    // Preserve manualHours if it exists
-    const manualHours = data.members[memberIndex].manualHours || 0;
-    
+    // Preserve non-editable member fields (manual hours, visibility, badges, etc.)
+    const existingMember = data.members[memberIndex];
+
     // Update member
     data.members[memberIndex] = {
+      ...existingMember,
       name: name.trim(),
       code: updatedCode,
       yearLevel: yearLevel || '',
-      email: email !== undefined ? email : (data.members[memberIndex].email || ''),
-      manualHours: manualHours
+      email: email !== undefined ? email : (existingMember.email || ''),
+      manualHours: existingMember.manualHours || 0,
+      badges: getMemberBadgeStatus(existingMember)
     };
     
     // If code changed, update attendee lists in sessions
