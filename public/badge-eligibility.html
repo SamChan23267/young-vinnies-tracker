@@ -147,11 +147,13 @@
                 return;
             }
             try {
-                await Promise.all(pending.map(badge => apiCall(`/api/members/${encodeURIComponent(memberCode)}/badges`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ badge, received: true })
-                })));
+                for (const badge of pending) {
+                    await apiCall(`/api/members/${encodeURIComponent(memberCode)}/badges`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ badge, received: true })
+                    });
+                }
                 showMessage(`Marked ${pending.length} badge(s) as received for ${memberCode}`, 'success');
                 await loadBadgeEligibility();
             } catch (error) {
