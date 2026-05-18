@@ -1043,6 +1043,7 @@ if (window.location.pathname.endsWith('members.html')) {
     
     
     // Filter and sort event listeners
+    document.getElementById('member-search')?.addEventListener('input', filterAndSortMembers);
     document.getElementById('member-sort')?.addEventListener('change', filterAndSortMembers);
     document.getElementById('hours-min')?.addEventListener('input', filterAndSortMembers);
     document.getElementById('hours-max')?.addEventListener('input', filterAndSortMembers);
