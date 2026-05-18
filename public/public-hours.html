@@ -98,13 +98,15 @@
                     if (nav) nav.style.display = 'block';
                     if (loginBtn) loginBtn.style.display = 'none';
 
+                    // Show badge eligibility link for all authenticated users
+                    const navBadges = document.getElementById('nav-badge-eligibility');
+                    if (navBadges) navBadges.style.display = 'block';
+
                     if (data.role === 'super_admin' || data.role === 'sam') {
                         const navAudit = document.getElementById('nav-audit');
                         if (navAudit) navAudit.style.display = 'block';
                         const navAdmin = document.getElementById('nav-admin-management');
                         if (navAdmin) navAdmin.style.display = 'block';
-                        const navBadges = document.getElementById('nav-badge-eligibility');
-                        if (navBadges) navBadges.style.display = 'block';
                         const navLoginAttempts = document.getElementById('nav-login-attempts');
                         if (navLoginAttempts && data.role === 'sam') navLoginAttempts.style.display = 'block';
                     }

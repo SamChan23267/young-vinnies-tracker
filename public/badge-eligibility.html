@@ -101,18 +101,17 @@
                 const response = await fetch('/api/check-auth', { cache: 'no-store' });
                 if (!response.ok) {
                     window.location.href = '/login.html';
-                    return false;
+                    return null;
                 }
                 const data = await response.json();
-                if (data.role !== 'super_admin' && data.role !== 'sam') {
-                    showMessage('Access denied. Super admin access required.', 'error');
-                    setTimeout(() => { window.location.href = 'index.html'; }, 1500);
-                    return false;
+                if (!data.authenticated) {
+                    window.location.href = '/login.html';
+                    return null;
                 }
-                return true;
+                return data.role;
             } catch (error) {
                 window.location.href = '/login.html';
-                return false;
+                return null;
             }
         }
 
@@ -206,14 +205,16 @@
                     const pendingBadges = Object.entries(row.shouldReceive).filter(([, v]) => !!v).map(([k]) => k);
                     const actionButtons = [];
 
-                    pendingBadges.forEach(badge => {
-                        actionButtons.push(
-                            `<button class="btn btn-primary btn-sm" onclick="markBadgeReceived('${row.code}', '${badge}')">Mark ${getBadgeText(badge)}</button>`
-                        );
-                    });
+                    if (_isSuperAdmin) {
+                        pendingBadges.forEach(badge => {
+                            actionButtons.push(
+                                `<button class="btn btn-primary btn-sm" onclick="markBadgeReceived('${row.code}', '${badge}')">Mark ${getBadgeText(badge)}</button>`
+                            );
+                        });
 
-                    if (pendingBadges.length > 1) {
-                        actionButtons.push(`<button class="btn btn-success btn-sm" onclick='markAllDueBadges("${row.code}", ${JSON.stringify(row.shouldReceive)})'>Mark All Due</button>`);
+                        if (pendingBadges.length > 1) {
+                            actionButtons.push(`<button class="btn btn-success btn-sm" onclick='markAllDueBadges("${row.code}", ${JSON.stringify(row.shouldReceive)})'>Mark All Due</button>`);
+                        }
                     }
 
                     return `
@@ -234,14 +235,23 @@
             }
         }
 
+        // isSuperAdmin controls whether mutation buttons are rendered
+        let _isSuperAdmin = false;
+
         document.getElementById('reload-badges-btn').addEventListener('click', loadBadgeEligibility);
         document.getElementById('badge-filter').addEventListener('change', loadBadgeEligibility);
         document.getElementById('include-received').addEventListener('change', loadBadgeEligibility);
         document.getElementById('mark-all-everyone-btn').addEventListener('click', markAllEveryone);
         document.getElementById('export-csv-btn').addEventListener('click', exportCSV);
 
-        checkSuperAdminAccess().then(allowed => {
-            if (allowed) loadBadgeEligibility();
+        checkSuperAdminAccess().then(role => {
+            if (!role) return;
+            _isSuperAdmin = role === 'super_admin' || role === 'sam';
+            // Hide mutation buttons for regular admins
+            if (!_isSuperAdmin) {
+                document.getElementById('mark-all-everyone-btn').style.display = 'none';
+            }
+            loadBadgeEligibility();
         });
     </script>
     <script>

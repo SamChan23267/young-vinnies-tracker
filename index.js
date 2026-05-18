@@ -654,7 +654,7 @@ app.get('/api/public/members', async (req, res) => {
 });
 
 // GET /api/badges/eligibility - Badge eligibility and receipt status (super admin & sam)
-app.get('/api/badges/eligibility', requireSuperAdmin, async (req, res) => {
+app.get('/api/badges/eligibility', requireAuth, async (req, res) => {
   try {
     const data = await readData();
     const filterBadge = getNormalizedBadgeType(req.query.badge);
@@ -699,7 +699,7 @@ app.get('/api/badges/eligibility', requireSuperAdmin, async (req, res) => {
 });
 
 // GET /api/badges/eligibility/csv - Download badge eligibility table as a CSV spreadsheet
-app.get('/api/badges/eligibility/csv', requireSuperAdmin, async (req, res) => {
+app.get('/api/badges/eligibility/csv', requireAuth, async (req, res) => {
   try {
     const data = await readData();
     const filterBadge = getNormalizedBadgeType(req.query.badge) || 'all';
@@ -762,7 +762,7 @@ app.get('/api/badges/eligibility/csv', requireSuperAdmin, async (req, res) => {
 });
 
 // GET /api/members/:code/badges - Check received badge state (single badge or all)
-app.get('/api/members/:code/badges', requireSuperAdmin, async (req, res) => {
+app.get('/api/members/:code/badges', requireAuth, async (req, res) => {
   try {
     const { code } = req.params;
     const badge = getNormalizedBadgeType(req.query.badge);

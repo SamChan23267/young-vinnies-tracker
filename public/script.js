@@ -617,6 +617,11 @@ if (!window.location.pathname.endsWith('login.html')) {
         try {
             const response = await fetch('/api/check-auth');
             const data = await response.json();
+            // Show badge eligibility link for all authenticated users
+            const navBadges = document.getElementById('nav-badge-eligibility');
+            if (navBadges) {
+                navBadges.style.display = 'block';
+            }
             // Show admin features for both super_admin and sam roles
             if (data.role === 'super_admin' || data.role === 'sam') {
                 const navAudit = document.getElementById('nav-audit');
@@ -630,10 +635,6 @@ if (!window.location.pathname.endsWith('login.html')) {
                 const navAdmin = document.getElementById('nav-admin-management');
                 if (navAdmin) {
                     navAdmin.style.display = 'block';
-                }
-                const navBadges = document.getElementById('nav-badge-eligibility');
-                if (navBadges) {
-                    navBadges.style.display = 'block';
                 }
             }
         } catch (error) {
