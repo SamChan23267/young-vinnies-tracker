@@ -757,6 +757,12 @@ app.get('/api/badges/eligibility/csv', requireAuth, async (req, res) => {
     });
 
     const yesNo = (v) => v ? 'Yes' : 'No';
+    const getDueSummaryLine = (badge, label) => {
+      const dueNames = filteredRows
+        .filter(row => row.shouldReceive[badge])
+        .map(row => row.name);
+      return `${label}: ${dueNames.length ? dueNames.join(', ') : 'None'}`;
+    };
 
     let csv = 'Name,Code,Total Hours,Eligible Bronze,Eligible Silver,Eligible Gold,Received Bronze,Received Silver,Received Gold,Needs Bronze,Needs Silver,Needs Gold\n';
     filteredRows.forEach(row => {
@@ -776,8 +782,14 @@ app.get('/api/badges/eligibility/csv', requireAuth, async (req, res) => {
       ].join(',') + '\n';
     });
 
+    csv += '\n';
+    csv += csvEscape(getDueSummaryLine('gold', 'Gold')) + '\n';
+    csv += csvEscape(getDueSummaryLine('silver', 'Silver')) + '\n';
+    csv += csvEscape(getDueSummaryLine('bronze', 'Bronze')) + '\n';
+
+    const exportDate = new Date().toISOString().slice(0, 10);
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename=badge_eligibility.csv');
+    res.setHeader('Content-Disposition', `attachment; filename=badge_eligibility_${exportDate}.csv`);
     res.send(csv);
   } catch (error) {
     res.status(500).json({ error: 'Failed to export badge eligibility CSV' });
