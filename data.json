@@ -1,4 +1,33 @@
 {
+  "badgeTiers": [
+    {
+      "name": "bronze",
+      "minHours": 20,
+      "displayName": "Bronze",
+      "emoji": "🥉",
+      "backgroundColor": "#fef0e6",
+      "backgroundGradient": "linear-gradient(90deg, #fef0e6 0%, #fde0cc 100%)",
+      "textColor": "#7a4a1e"
+    },
+    {
+      "name": "silver",
+      "minHours": 40,
+      "displayName": "Silver",
+      "emoji": "🥈",
+      "backgroundColor": "#f5f5f5",
+      "backgroundGradient": "linear-gradient(90deg, #f5f5f5 0%, #e8e8e8 100%)",
+      "textColor": "#495057"
+    },
+    {
+      "name": "gold",
+      "minHours": 60,
+      "displayName": "Gold",
+      "emoji": "🥇",
+      "backgroundColor": "#fff9e6",
+      "backgroundGradient": "linear-gradient(90deg, #fff9e6 0%, #fff3cc 100%)",
+      "textColor": "#856404"
+    }
+  ],
   "members": [
     {
       "name": "Alice Smith",
