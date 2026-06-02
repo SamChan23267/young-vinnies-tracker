@@ -1252,6 +1252,13 @@ app.put('/api/sessions/:id', requireAuth, async (req, res) => {
     data.sessions[sessionIndex].description = description;
     if (hours !== undefined) {
       data.sessions[sessionIndex].hours = hours;
+      // Update individual hours for each volunteer to match the new session hours
+      if (!data.sessions[sessionIndex].individualHours) {
+        data.sessions[sessionIndex].individualHours = {};
+      }
+      data.sessions[sessionIndex].attendees.forEach(attendeeCode => {
+        data.sessions[sessionIndex].individualHours[attendeeCode] = hours;
+      });
     }
     if (sessionType !== undefined) {
       data.sessions[sessionIndex].sessionType = sessionType;
