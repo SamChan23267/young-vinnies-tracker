@@ -291,9 +291,9 @@ if (window.location.pathname.endsWith('session.html')) {
                         <input 
                             type="number" 
                             id="hours-${member.code}" 
-                            min="1" 
+                            min="0.25" 
                             max="24" 
-                            step="1" 
+                            step="0.25" 
                             value="${individualHours}"
                             style="width: 70px; padding: 3px; border: 1px solid #ddd; border-radius: 4px;"
                         >
