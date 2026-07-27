@@ -1158,3 +1158,14 @@ header.has-logout p {
     color: #7a4a1e;
     font-weight: 600;
 }
+
+.tier-label {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    vertical-align: middle;
+}
