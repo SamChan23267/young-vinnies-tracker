@@ -228,8 +228,13 @@ function isValidHexColor(color) {
 }
 
 function normalizeBadgeTierKey(value, fallbackIndex) {
-  const raw = String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-  return raw || `tier-${fallbackIndex + 1}`;
+  const normalized = String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  let start = 0;
+  let end = normalized.length;
+  while (start < end && normalized[start] === '-') start++;
+  while (end > start && normalized[end - 1] === '-') end--;
+  const key = normalized.slice(start, end);
+  return key || `tier-${fallbackIndex + 1}`;
 }
 
 function normalizeBadgeTiers(rawTiers) {
