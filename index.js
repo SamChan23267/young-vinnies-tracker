@@ -761,7 +761,6 @@ app.get('/api/public/members', async (req, res) => {
   try {
     const data = await readData();
     const tiers = getBadgeTiers(data);
-    const tiers = getBadgeTiers(data);
     const members = data.members.filter(m => !m.hiddenFromPublic);
     const totals = calculateAllMemberTotalHours(data);
     // Calculate total hours for each member

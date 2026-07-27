@@ -193,44 +193,87 @@
                 : row.shouldReceive[filterBadge];
         }
 
-        function renderActionButtons(row) {
-            if (row._saving) return '<span>Saving...</span>';
+        function buildActionButtons(row) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'action-buttons';
+
+            if (row._saving) {
+                wrapper.textContent = 'Saving...';
+                return wrapper;
+            }
 
             const pendingBadges = Object.entries(row.shouldReceive).filter(([, v]) => !!v).map(([k]) => k);
             const receivedBadges = Object.entries(row.received).filter(([, v]) => !!v).map(([k]) => k);
-            const actionButtons = [];
 
             if (_isSuperAdmin) {
                 pendingBadges.forEach(badge => {
-                    actionButtons.push(
-                        `<button class="btn btn-primary btn-sm" onclick="markBadgeReceived('${row.code}', '${badge}')">Mark ${escapeHtml(getBadgeText(badge))}</button>`
-                    );
+                    const button = document.createElement('button');
+                    button.className = 'btn btn-primary btn-sm';
+                    button.textContent = `Mark ${getBadgeText(badge)}`;
+                    button.addEventListener('click', () => markBadgeReceived(row.code, badge));
+                    wrapper.appendChild(button);
                 });
+
                 receivedBadges.forEach(badge => {
-                    actionButtons.push(
-                        `<button class="btn btn-secondary btn-sm" onclick="unmarkBadgeReceived('${row.code}', '${badge}')">Unmark ${escapeHtml(getBadgeText(badge))}</button>`
-                    );
+                    const button = document.createElement('button');
+                    button.className = 'btn btn-secondary btn-sm';
+                    button.textContent = `Unmark ${getBadgeText(badge)}`;
+                    button.addEventListener('click', () => unmarkBadgeReceived(row.code, badge));
+                    wrapper.appendChild(button);
                 });
+
                 if (pendingBadges.length > 1) {
-                    actionButtons.push(`<button class="btn btn-success btn-sm" onclick='markAllDueBadges("${row.code}", ${JSON.stringify(row.shouldReceive)})'>Mark All Due</button>`);
+                    const button = document.createElement('button');
+                    button.className = 'btn btn-success btn-sm';
+                    button.textContent = 'Mark All Due';
+                    button.addEventListener('click', () => markAllDueBadges(row.code, row.shouldReceive));
+                    wrapper.appendChild(button);
                 }
             }
 
-            return actionButtons.length ? actionButtons.join('') : '—';
+            if (!wrapper.childNodes.length) {
+                wrapper.textContent = '—';
+            }
+
+            return wrapper;
         }
 
-        function renderRow(row) {
-            return `
-                <tr data-member-code="${escapeHtml(row.code)}">
-                    <td>${escapeHtml(row.name)}</td>
-                    <td><strong>${escapeHtml(row.code)}</strong></td>
-                    <td>${row.totalHours} hrs</td>
-                    <td>${formatBadgeList(row.eligible)}</td>
-                    <td>${formatBadgeList(row.received)}</td>
-                    <td>${formatBadgeList(row.shouldReceive)}</td>
-                    <td><div class="action-buttons">${renderActionButtons(row)}</div></td>
-                </tr>
-            `;
+        function renderRowElement(row) {
+            const tr = document.createElement('tr');
+            tr.dataset.memberCode = row.code;
+
+            const nameCell = document.createElement('td');
+            nameCell.textContent = row.name;
+
+            const codeCell = document.createElement('td');
+            const strong = document.createElement('strong');
+            strong.textContent = row.code;
+            codeCell.appendChild(strong);
+
+            const hoursCell = document.createElement('td');
+            hoursCell.textContent = `${row.totalHours} hrs`;
+
+            const eligibleCell = document.createElement('td');
+            eligibleCell.textContent = formatBadgeList(row.eligible);
+
+            const receivedCell = document.createElement('td');
+            receivedCell.textContent = formatBadgeList(row.received);
+
+            const shouldReceiveCell = document.createElement('td');
+            shouldReceiveCell.textContent = formatBadgeList(row.shouldReceive);
+
+            const actionsCell = document.createElement('td');
+            actionsCell.appendChild(buildActionButtons(row));
+
+            tr.appendChild(nameCell);
+            tr.appendChild(codeCell);
+            tr.appendChild(hoursCell);
+            tr.appendChild(eligibleCell);
+            tr.appendChild(receivedCell);
+            tr.appendChild(shouldReceiveCell);
+            tr.appendChild(actionsCell);
+
+            return tr;
         }
 
         function renderCurrentRows() {
@@ -239,7 +282,7 @@
                 tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No members match this filter.</td></tr>';
                 return;
             }
-            tbody.innerHTML = _currentRows.map(renderRow).join('');
+            tbody.replaceChildren(..._currentRows.map(renderRowElement));
         }
 
         function findRenderedRowElement(memberCode) {
@@ -267,7 +310,7 @@
             }
 
             const rowElement = findRenderedRowElement(row.code);
-            if (rowElement) rowElement.outerHTML = renderRow(row);
+            if (rowElement) rowElement.replaceWith(renderRowElement(row));
             else renderCurrentRows();
         }
 
