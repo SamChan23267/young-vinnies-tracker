@@ -1714,6 +1714,103 @@ if (window.location.pathname.endsWith('export.html')) {
 
 // Settings Page
 if (window.location.pathname.endsWith('settings.html')) {
+    let badgeTierDraft = [];
+    const defaultTierColors = ['#B26A3C', '#7A7A7A', '#C48A00', '#2E7D32', '#1565C0', '#6A1B9A', '#D84315'];
+
+    function renderBadgeTierRows() {
+        const tbody = document.getElementById('badge-tier-settings-body');
+        if (!tbody) return;
+        if (!badgeTierDraft.length) {
+            tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Add at least one tier.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = badgeTierDraft.map((tier, index) => `
+            <tr data-tier-index="${index}">
+                <td><input class="form-input" type="text" data-tier-field="name" value="${escapeHtml(tier.name || '')}" placeholder="Tier name"></td>
+                <td><input class="form-input" type="number" min="0" step="1" data-tier-field="minHours" value="${Number.isFinite(Number(tier.minHours)) ? Number(tier.minHours) : 0}"></td>
+                <td><input class="form-input" type="color" data-tier-field="color" value="${escapeHtml(tier.color || defaultTierColors[index % defaultTierColors.length])}"></td>
+                <td><button type="button" class="btn btn-danger btn-sm" data-tier-remove="${index}" ${badgeTierDraft.length <= 1 ? 'disabled' : ''}>Remove</button></td>
+            </tr>
+        `).join('');
+    }
+
+    function syncTierDraftFromInputs() {
+        const tbody = document.getElementById('badge-tier-settings-body');
+        if (!tbody) return;
+        const rows = Array.from(tbody.querySelectorAll('tr[data-tier-index]'));
+        badgeTierDraft = rows.map((row, index) => {
+            const name = row.querySelector('[data-tier-field="name"]')?.value?.trim() || `Tier ${index + 1}`;
+            const minHoursRaw = Number(row.querySelector('[data-tier-field="minHours"]')?.value);
+            const minHours = Number.isFinite(minHoursRaw) && minHoursRaw >= 0 ? minHoursRaw : 0;
+            const color = row.querySelector('[data-tier-field="color"]')?.value || defaultTierColors[index % defaultTierColors.length];
+            return {
+                key: badgeTierDraft[index]?.key,
+                name,
+                minHours,
+                color
+            };
+        });
+    }
+
+    async function loadBadgeTiers() {
+        try {
+            badgeTierDraft = await apiCall('/api/badge-tiers');
+            renderBadgeTierRows();
+        } catch (error) {
+            const tbody = document.getElementById('badge-tier-settings-body');
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Failed to load tiers.</td></tr>';
+            }
+        }
+    }
+
+    async function saveBadgeTiers() {
+        syncTierDraftFromInputs();
+        if (!badgeTierDraft.length) {
+            showMessage('Add at least one tier before saving.', 'error');
+            return;
+        }
+        if (badgeTierDraft.some(tier => !tier.name.trim())) {
+            showMessage('Each tier must have a name.', 'error');
+            return;
+        }
+        if (badgeTierDraft.some(tier => !Number.isFinite(Number(tier.minHours)) || Number(tier.minHours) < 0)) {
+            showMessage('Tier minimum hours must be zero or greater.', 'error');
+            return;
+        }
+        try {
+            const response = await apiCall('/api/badge-tiers', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tiers: badgeTierDraft.map(tier => ({
+                        key: tier.key,
+                        name: tier.name.trim(),
+                        minHours: Number(tier.minHours),
+                        color: tier.color
+                    }))
+                })
+            });
+            badgeTierDraft = response.tiers || badgeTierDraft;
+            renderBadgeTierRows();
+            showMessage('Badge tiers updated successfully!', 'success');
+        } catch (error) {
+            console.error('Error saving badge tiers:', error);
+        }
+    }
+
+    function addBadgeTier() {
+        syncTierDraftFromInputs();
+        const index = badgeTierDraft.length;
+        badgeTierDraft.push({
+            name: `Tier ${index + 1}`,
+            minHours: 0,
+            color: defaultTierColors[index % defaultTierColors.length]
+        });
+        renderBadgeTierRows();
+    }
+
     // Load user info
     async function loadUserInfo() {
         try {
@@ -1725,6 +1822,12 @@ if (window.location.pathname.endsWith('settings.html')) {
                 // Show actual role for sam user in settings page, otherwise use display role
                 document.getElementById('user-role').textContent = data.role === 'sam' ? 'sam' : getDisplayRole(data.role);
                 document.getElementById('user-display-name').textContent = data.displayName || data.username;
+                const canManageTiers = data.role === 'super_admin' || data.role === 'sam';
+                const tierCard = document.getElementById('badge-tier-settings-card');
+                if (tierCard) tierCard.style.display = canManageTiers ? 'block' : 'none';
+                if (canManageTiers) {
+                    loadBadgeTiers();
+                }
             }
         } catch (error) {
             console.error('Error loading user info:', error);
@@ -1765,6 +1868,21 @@ if (window.location.pathname.endsWith('settings.html')) {
     
     // Logout button handler
     document.getElementById('logout-btn')?.addEventListener('click', logout);
+    document.getElementById('add-badge-tier-btn')?.addEventListener('click', addBadgeTier);
+    document.getElementById('save-badge-tier-btn')?.addEventListener('click', saveBadgeTiers);
+    document.getElementById('badge-tier-settings-body')?.addEventListener('click', (e) => {
+        const removeIndex = e.target?.getAttribute?.('data-tier-remove');
+        if (removeIndex === null || removeIndex === undefined) return;
+        syncTierDraftFromInputs();
+        const index = Number(removeIndex);
+        if (!Number.isInteger(index)) return;
+        if (badgeTierDraft.length <= 1) {
+            showMessage('At least one tier is required.', 'error');
+            return;
+        }
+        badgeTierDraft.splice(index, 1);
+        renderBadgeTierRows();
+    });
     
     loadUserInfo();
 }

@@ -64,6 +64,30 @@
                 </div>
             </section>
 
+            <section class="card" id="badge-tier-settings-card" style="display: none;">
+                <h2>🏅 Badge Tier Settings</h2>
+                <p style="margin-bottom: 12px;">Configure tier names, minimum hours, and colors for badge eligibility and leaderboard highlights.</p>
+                <div class="table-section">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Tier Name</th>
+                                <th>Min Hours</th>
+                                <th>Color</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="badge-tier-settings-body">
+                            <tr><td colspan="4" class="empty-state">Loading tiers...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="form-group" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
+                    <button type="button" class="btn btn-secondary" id="add-badge-tier-btn">+ Add Tier</button>
+                    <button type="button" class="btn btn-primary" id="save-badge-tier-btn">Save Tiers</button>
+                </div>
+            </section>
+
             <!-- Logout Section -->
             <section class="card">
                 <h2>🚪 Session Management</h2>

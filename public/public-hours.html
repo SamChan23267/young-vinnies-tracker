@@ -48,10 +48,20 @@
     <div id="message-container"></div>
 
     <script>
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         async function loadPublicMembers() {
             try {
                 const res = await fetch('/api/public/members');
-                const members = await res.json();
+                const payload = await res.json();
+                const members = Array.isArray(payload) ? payload : (payload.members || []);
                 const container = document.getElementById('public-members-list');
 
                 if (!members.length) {
@@ -68,15 +78,12 @@
                     return { ...m, rank };
                 });
 
-                function getTierClass(hours) {
-                    if (hours >= 60) return 'tier-gold';
-                    if (hours >= 40) return 'tier-silver';
-                    if (hours >= 20) return 'tier-bronze';
-                    return '';
-                }
-
                 container.innerHTML = '<table><thead><tr><th>#</th><th>Name</th><th>Total Hours</th></tr></thead><tbody>' +
-                    ranked.map(m => `<tr class="${getTierClass(m.totalHours)}"><td>${m.rank}</td><td>${m.name}</td><td>${m.totalHours} hr${m.totalHours !== 1 ? 's' : ''}</td></tr>`).join('') +
+                    ranked.map(m => {
+                        const nameStyle = m.tierColor ? `style="color:${m.tierColor};font-weight:700;"` : '';
+                        const tierLabel = m.tierName ? ` <span style="font-size:0.8em;opacity:.8;">(${escapeHtml(m.tierName)})</span>` : '';
+                        return `<tr><td>${m.rank}</td><td><span ${nameStyle}>${escapeHtml(m.name)}</span>${tierLabel}</td><td>${m.totalHours} hr${m.totalHours !== 1 ? 's' : ''}</td></tr>`;
+                    }).join('') +
                     '</tbody></table>';
             } catch (e) {
                 document.getElementById('public-members-list').innerHTML = '<p class="empty-state">Failed to load data.</p>';
