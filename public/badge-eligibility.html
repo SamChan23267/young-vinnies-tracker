@@ -36,9 +36,6 @@
                         <label for="badge-filter">Badge filter:</label>
                         <select id="badge-filter" class="form-select">
                             <option value="all">All badges</option>
-                            <option value="bronze">Bronze only</option>
-                            <option value="silver">Silver only</option>
-                            <option value="gold">Gold only</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -51,6 +48,27 @@
                         <button class="btn btn-primary" id="reload-badges-btn">Refresh</button>
                         <button class="btn btn-success" id="mark-all-everyone-btn" title="Mark all pending badges as received for every member currently shown">🏅 Mark All (Everyone)</button>
                         <button class="btn btn-secondary" id="export-csv-btn" title="Download badge eligibility table as a spreadsheet">📥 Export CSV</button>
+                    </div>
+                </div>
+                <div class="form-section" id="tier-config-section" style="margin-bottom: 20px;">
+                    <h3>🎨 Badge Tier Settings</h3>
+                    <p class="muted" style="margin-bottom: 10px;">Set tier names, hour thresholds, and colors. Add as many tiers as you need.</p>
+                    <div class="table-section">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Tier Name</th>
+                                    <th>Min Hours</th>
+                                    <th>Color</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tier-config-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div class="action-buttons" style="margin-top: 12px;">
+                        <button class="btn btn-secondary" id="add-tier-btn">+ Add Tier</button>
+                        <button class="btn btn-primary" id="save-tiers-btn">Save Tier Settings</button>
                     </div>
                 </div>
                 <div class="table-section">
@@ -82,34 +100,62 @@
     <div id="message-container"></div>
     <script src="script.js?v=2"></script>
     <script>
+        const DEFAULT_TIER_COLORS = ['#cd7f32', '#c0c0c0', '#ffd700', '#1e90ff', '#32cd32', '#ff69b4', '#8a2be2', '#ff8c00'];
+        let _isSuperAdmin = false;
+        let _tiers = [];
+        let _currentRows = [];
+
+        function escapeHtml(text) {
+            return String(text ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function normalizeTierKey(value) {
+            return String(value ?? '')
+                .trim()
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '');
+        }
+
+        function normalizeTierColor(color) {
+            const normalized = String(color || '').trim().toLowerCase();
+            return /^#[0-9a-f]{6}$/.test(normalized) ? normalized : null;
+        }
+
+        function getUniqueDefaultTierColor(index, existingColors) {
+            const used = new Set((existingColors || []).map(color => String(color).toLowerCase()));
+            for (const color of DEFAULT_TIER_COLORS) {
+                if (!used.has(color)) return color;
+            }
+            let hue = (index * 137.5) % 360;
+            while (used.has(`hsl(${Math.round(hue)}, 65%, 50%)`)) {
+                hue = (hue + 41) % 360;
+            }
+            return `hsl(${Math.round(hue)}, 65%, 50%)`;
+        }
+
         function getBadgeText(badgeKey) {
-            if (badgeKey === 'bronze') return '🥉 Bronze';
-            if (badgeKey === 'silver') return '🥈 Silver';
-            if (badgeKey === 'gold') return '🥇 Gold';
-            return badgeKey;
-        }
-
-        function formatBadgeList(statusMap) {
-            const items = Object.entries(statusMap)
-                .filter(([, val]) => !!val)
-                .map(([badge]) => getBadgeText(badge));
-            return items.length ? items.join(', ') : '—';
-        }
-
-        function getShouldReceive(eligible, received) {
-            return {
-                bronze: !!eligible.bronze && !received.bronze,
-                silver: !!eligible.silver && !received.silver,
-                gold: !!eligible.gold && !received.gold
-            };
+            const tier = _tiers.find(t => t.key === badgeKey);
+            return tier ? `${tier.name}` : badgeKey;
         }
 
         function cloneBadgeStatus(statusMap) {
-            return {
-                bronze: !!statusMap?.bronze,
-                silver: !!statusMap?.silver,
-                gold: !!statusMap?.gold
-            };
+            return _tiers.reduce((acc, tier) => {
+                acc[tier.key] = !!statusMap?.[tier.key];
+                return acc;
+            }, {});
+        }
+
+        function getShouldReceive(eligible, received) {
+            return _tiers.reduce((acc, tier) => {
+                acc[tier.key] = !!eligible?.[tier.key] && !received?.[tier.key];
+                return acc;
+            }, {});
         }
 
         function cloneRow(row) {
@@ -124,14 +170,21 @@
             };
         }
 
+        function formatBadgeList(statusMap) {
+            const items = _tiers
+                .filter(tier => !!statusMap?.[tier.key])
+                .map(tier => tier.name);
+            return items.length ? items.join(', ') : '—';
+        }
+
         function rowMatchesCurrentFilter(row) {
             const filterBadge = document.getElementById('badge-filter').value;
             const includeReceived = document.getElementById('include-received').checked;
-            const hasPending = row.shouldReceive.bronze || row.shouldReceive.silver || row.shouldReceive.gold;
+            const hasPending = Object.values(row.shouldReceive || {}).some(Boolean);
 
             if (filterBadge === 'all') {
                 return includeReceived
-                    ? (hasPending || row.received.bronze || row.received.silver || row.received.gold)
+                    ? (hasPending || Object.values(row.received || {}).some(Boolean))
                     : hasPending;
             }
 
@@ -140,47 +193,87 @@
                 : row.shouldReceive[filterBadge];
         }
 
-        function renderActionButtons(row) {
+        function buildActionButtons(row) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'action-buttons';
+
             if (row._saving) {
-                return '<span>Saving...</span>';
+                wrapper.textContent = 'Saving...';
+                return wrapper;
             }
 
             const pendingBadges = Object.entries(row.shouldReceive).filter(([, v]) => !!v).map(([k]) => k);
             const receivedBadges = Object.entries(row.received).filter(([, v]) => !!v).map(([k]) => k);
-            const actionButtons = [];
 
             if (_isSuperAdmin) {
                 pendingBadges.forEach(badge => {
-                    actionButtons.push(
-                        `<button class="btn btn-primary btn-sm" onclick="markBadgeReceived('${row.code}', '${badge}')">Mark ${getBadgeText(badge)}</button>`
-                    );
+                    const button = document.createElement('button');
+                    button.className = 'btn btn-primary btn-sm';
+                    button.textContent = `Mark ${getBadgeText(badge)}`;
+                    button.addEventListener('click', () => markBadgeReceived(row.code, badge));
+                    wrapper.appendChild(button);
                 });
+
                 receivedBadges.forEach(badge => {
-                    actionButtons.push(
-                        `<button class="btn btn-secondary btn-sm" onclick="unmarkBadgeReceived('${row.code}', '${badge}')">Unmark ${getBadgeText(badge)}</button>`
-                    );
+                    const button = document.createElement('button');
+                    button.className = 'btn btn-secondary btn-sm';
+                    button.textContent = `Unmark ${getBadgeText(badge)}`;
+                    button.addEventListener('click', () => unmarkBadgeReceived(row.code, badge));
+                    wrapper.appendChild(button);
                 });
 
                 if (pendingBadges.length > 1) {
-                    actionButtons.push(`<button class="btn btn-success btn-sm" onclick='markAllDueBadges("${row.code}", ${JSON.stringify(row.shouldReceive)})'>Mark All Due</button>`);
+                    const button = document.createElement('button');
+                    button.className = 'btn btn-success btn-sm';
+                    button.textContent = 'Mark All Due';
+                    button.addEventListener('click', () => markAllDueBadges(row.code, row.shouldReceive));
+                    wrapper.appendChild(button);
                 }
             }
 
-            return actionButtons.length ? actionButtons.join('') : '—';
+            if (!wrapper.childNodes.length) {
+                wrapper.textContent = '—';
+            }
+
+            return wrapper;
         }
 
-        function renderRow(row) {
-            return `
-                <tr data-member-code="${escapeHtml(row.code)}">
-                    <td>${escapeHtml(row.name)}</td>
-                    <td><strong>${escapeHtml(row.code)}</strong></td>
-                    <td>${row.totalHours} hrs</td>
-                    <td>${formatBadgeList(row.eligible)}</td>
-                    <td>${formatBadgeList(row.received)}</td>
-                    <td>${formatBadgeList(row.shouldReceive)}</td>
-                    <td><div class="action-buttons">${renderActionButtons(row)}</div></td>
-                </tr>
-            `;
+        function renderRowElement(row) {
+            const tr = document.createElement('tr');
+            tr.dataset.memberCode = row.code;
+
+            const nameCell = document.createElement('td');
+            nameCell.textContent = row.name;
+
+            const codeCell = document.createElement('td');
+            const strong = document.createElement('strong');
+            strong.textContent = row.code;
+            codeCell.appendChild(strong);
+
+            const hoursCell = document.createElement('td');
+            hoursCell.textContent = `${row.totalHours} hrs`;
+
+            const eligibleCell = document.createElement('td');
+            eligibleCell.textContent = formatBadgeList(row.eligible);
+
+            const receivedCell = document.createElement('td');
+            receivedCell.textContent = formatBadgeList(row.received);
+
+            const shouldReceiveCell = document.createElement('td');
+            shouldReceiveCell.textContent = formatBadgeList(row.shouldReceive);
+
+            const actionsCell = document.createElement('td');
+            actionsCell.appendChild(buildActionButtons(row));
+
+            tr.appendChild(nameCell);
+            tr.appendChild(codeCell);
+            tr.appendChild(hoursCell);
+            tr.appendChild(eligibleCell);
+            tr.appendChild(receivedCell);
+            tr.appendChild(shouldReceiveCell);
+            tr.appendChild(actionsCell);
+
+            return tr;
         }
 
         function renderCurrentRows() {
@@ -189,7 +282,7 @@
                 tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No members match this filter.</td></tr>';
                 return;
             }
-            tbody.innerHTML = _currentRows.map(renderRow).join('');
+            tbody.replaceChildren(..._currentRows.map(renderRowElement));
         }
 
         function findRenderedRowElement(memberCode) {
@@ -209,9 +302,7 @@
                 const rowElement = findRenderedRowElement(row.code);
                 if (rowElement) {
                     rowElement.remove();
-                    if (!_currentRows.length) {
-                        renderCurrentRows();
-                    }
+                    if (!_currentRows.length) renderCurrentRows();
                 } else {
                     renderCurrentRows();
                 }
@@ -219,11 +310,116 @@
             }
 
             const rowElement = findRenderedRowElement(row.code);
-            if (rowElement) {
-                rowElement.outerHTML = renderRow(row);
-            } else {
-                renderCurrentRows();
+            if (rowElement) rowElement.replaceWith(renderRowElement(row));
+            else renderCurrentRows();
+        }
+
+        function renderTierConfigRows() {
+            const tbody = document.getElementById('tier-config-tbody');
+            if (!_tiers.length) {
+                tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No tiers configured.</td></tr>';
+                return;
             }
+
+            tbody.innerHTML = _tiers.map((tier, index) => `
+                <tr data-tier-key="${escapeHtml(tier.key)}">
+                    <td><input type="text" class="form-select tier-name-input" value="${escapeHtml(tier.name)}" maxlength="40" ${_isSuperAdmin ? '' : 'disabled'}></td>
+                    <td><input type="number" class="form-select tier-hours-input" value="${tier.minHours}" min="0" step="0.1" ${_isSuperAdmin ? '' : 'disabled'}></td>
+                    <td><input type="color" class="tier-color-input" value="${normalizeTierColor(tier.color) || '#555555'}" ${_isSuperAdmin ? '' : 'disabled'}></td>
+                    <td>
+                        <button class="btn btn-danger btn-sm remove-tier-btn" data-tier-index="${index}" ${_isSuperAdmin && _tiers.length > 1 ? '' : 'disabled'}>Remove</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function populateBadgeFilterOptions() {
+            const filterEl = document.getElementById('badge-filter');
+            const previous = filterEl.value || 'all';
+            filterEl.innerHTML = '<option value="all">All badges</option>' +
+                _tiers.map(tier => `<option value="${escapeHtml(tier.key)}">${escapeHtml(tier.name)} only</option>`).join('');
+            filterEl.value = _tiers.some(t => t.key === previous) || previous === 'all' ? previous : 'all';
+        }
+
+        async function loadBadgeTiers() {
+            const response = await apiCall('/api/badge-tiers');
+            _tiers = Array.isArray(response?.tiers) ? response.tiers : [];
+            populateBadgeFilterOptions();
+            renderTierConfigRows();
+        }
+
+        function collectTierValuesFromForm() {
+            const rows = Array.from(document.querySelectorAll('#tier-config-tbody tr[data-tier-key], #tier-config-tbody tr[data-new-tier="true"]'));
+            const usedKeys = new Set();
+            return rows.map((row, index) => {
+                const existingKey = row.dataset.tierKey || '';
+                const name = row.querySelector('.tier-name-input')?.value?.trim() || '';
+                const minHoursRaw = row.querySelector('.tier-hours-input')?.value;
+                const colorRaw = row.querySelector('.tier-color-input')?.value;
+                let key = normalizeTierKey(existingKey || name) || `tier-${index + 1}`;
+                const baseKey = key;
+                let suffix = 2;
+                while (usedKeys.has(key)) {
+                    key = `${baseKey}-${suffix++}`;
+                }
+                usedKeys.add(key);
+                return {
+                    key,
+                    name,
+                    minHours: Number(minHoursRaw),
+                    color: normalizeTierColor(colorRaw) || getUniqueDefaultTierColor(index, [])
+                };
+            });
+        }
+
+        function validateTierValues(tiers) {
+            if (!tiers.length) return 'At least one tier is required.';
+            if (tiers.some(tier => !tier.name)) return 'Every tier needs a name.';
+            if (tiers.some(tier => !Number.isFinite(tier.minHours) || tier.minHours < 0)) return 'Every tier needs a valid non-negative minimum hours value.';
+            return null;
+        }
+
+        async function saveTierSettings() {
+            if (!_isSuperAdmin) return;
+            const nextTiers = collectTierValuesFromForm();
+            const validationError = validateTierValues(nextTiers);
+            if (validationError) {
+                showMessage(validationError, 'error');
+                return;
+            }
+
+            try {
+                const result = await apiCall('/api/badge-tiers', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tiers: nextTiers })
+                });
+                _tiers = result?.tiers || nextTiers;
+                populateBadgeFilterOptions();
+                renderTierConfigRows();
+                await loadBadgeEligibility();
+                showMessage('Badge tier settings updated.', 'success');
+            } catch (error) {
+                console.error('Failed to save badge tiers:', error);
+            }
+        }
+
+        function addTierRow() {
+            if (!_isSuperAdmin) return;
+            const existingColors = _tiers.map(tier => tier.color);
+            _tiers.push({
+                key: '',
+                name: `Tier ${_tiers.length + 1}`,
+                minHours: 0,
+                color: getUniqueDefaultTierColor(_tiers.length, existingColors)
+            });
+            renderTierConfigRows();
+        }
+
+        function removeTier(index) {
+            if (!_isSuperAdmin || _tiers.length <= 1) return;
+            _tiers.splice(index, 1);
+            renderTierConfigRows();
         }
 
         async function checkSuperAdminAccess() {
@@ -280,10 +476,7 @@
                     await loadBadgeEligibility();
                 }
 
-                showMessage(
-                    `${getBadgeText(badge)} ${received ? 'marked as received' : 'unmarked'} for ${memberCode}`,
-                    'success'
-                );
+                showMessage(`${getBadgeText(badge)} ${received ? 'marked as received' : 'unmarked'} for ${memberCode}`, 'success');
             } catch (error) {
                 console.error('Update badge failed:', error);
                 _currentRows = previousRows;
@@ -320,19 +513,13 @@
             }
         }
 
-        // The currently loaded rows (for Mark All Everyone)
-        let _currentRows = [];
-
         async function markAllEveryone() {
-            const pending = _currentRows.filter(row =>
-                row.shouldReceive.bronze || row.shouldReceive.silver || row.shouldReceive.gold
-            );
+            const pending = _currentRows.filter(row => Object.values(row.shouldReceive).some(Boolean));
             if (!pending.length) {
                 showMessage('No pending badges to award for any visible member.', 'error');
                 return;
             }
-            const total = pending.reduce((sum, row) =>
-                sum + Object.values(row.shouldReceive).filter(Boolean).length, 0);
+            const total = pending.reduce((sum, row) => sum + Object.values(row.shouldReceive).filter(Boolean).length, 0);
             if (!confirm(`This will mark ${total} badge(s) as received across ${pending.length} member(s). Continue?`)) return;
 
             try {
@@ -373,23 +560,28 @@
             }
         }
 
-        // isSuperAdmin controls whether mutation buttons are rendered
-        let _isSuperAdmin = false;
-
         document.getElementById('reload-badges-btn').addEventListener('click', loadBadgeEligibility);
         document.getElementById('badge-filter').addEventListener('change', loadBadgeEligibility);
         document.getElementById('include-received').addEventListener('change', loadBadgeEligibility);
         document.getElementById('mark-all-everyone-btn').addEventListener('click', markAllEveryone);
         document.getElementById('export-csv-btn').addEventListener('click', exportCSV);
+        document.getElementById('add-tier-btn').addEventListener('click', addTierRow);
+        document.getElementById('save-tiers-btn').addEventListener('click', saveTierSettings);
+        document.getElementById('tier-config-tbody').addEventListener('click', (event) => {
+            const removeButton = event.target.closest('.remove-tier-btn');
+            if (!removeButton) return;
+            removeTier(Number(removeButton.dataset.tierIndex));
+        });
 
-        checkSuperAdminAccess().then(role => {
+        checkSuperAdminAccess().then(async (role) => {
             if (!role) return;
             _isSuperAdmin = role === 'super_admin' || role === 'sam';
-            // Hide mutation buttons for regular admins
             if (!_isSuperAdmin) {
                 document.getElementById('mark-all-everyone-btn').style.display = 'none';
+                document.getElementById('tier-config-section').style.display = 'none';
             }
-            loadBadgeEligibility();
+            await loadBadgeTiers();
+            await loadBadgeEligibility();
         });
     </script>
     <script>

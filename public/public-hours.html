@@ -68,15 +68,37 @@
                     return { ...m, rank };
                 });
 
-                function getTierClass(hours) {
-                    if (hours >= 60) return 'tier-gold';
-                    if (hours >= 40) return 'tier-silver';
-                    if (hours >= 20) return 'tier-bronze';
-                    return '';
+                function escapeHtml(text) {
+                    return String(text ?? '')
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#039;');
+                }
+
+                function getTierStyles(tier) {
+                    if (!tier || !tier.color) {
+                        return {
+                            rowStyle: '',
+                            nameStyle: '',
+                            label: ''
+                        };
+                    }
+
+                    const color = tier.color;
+                    return {
+                        rowStyle: `style="background: linear-gradient(90deg, ${color}22 0%, ${color}11 100%);"`,
+                        nameStyle: `style="color:${color};font-weight:700;"`,
+                        label: `<span class="tier-label" style="background:${color};">${escapeHtml(tier.name)}</span>`
+                    };
                 }
 
                 container.innerHTML = '<table><thead><tr><th>#</th><th>Name</th><th>Total Hours</th></tr></thead><tbody>' +
-                    ranked.map(m => `<tr class="${getTierClass(m.totalHours)}"><td>${m.rank}</td><td>${m.name}</td><td>${m.totalHours} hr${m.totalHours !== 1 ? 's' : ''}</td></tr>`).join('') +
+                    ranked.map(m => {
+                        const tierStyles = getTierStyles(m.tier);
+                        return `<tr ${tierStyles.rowStyle}><td>${m.rank}</td><td><span ${tierStyles.nameStyle}>${escapeHtml(m.name)}</span> ${tierStyles.label}</td><td>${m.totalHours} hr${m.totalHours !== 1 ? 's' : ''}</td></tr>`;
+                    }).join('') +
                     '</tbody></table>';
             } catch (e) {
                 document.getElementById('public-members-list').innerHTML = '<p class="empty-state">Failed to load data.</p>';

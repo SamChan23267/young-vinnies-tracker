@@ -216,27 +216,113 @@ function getDisplayRole(role) {
   return role === 'sam' ? 'super_admin' : role;
 }
 
-const BADGE_TIERS = {
-  bronze: { minHours: 20 },
-  silver: { minHours: 40 },
-  gold: { minHours: 60 }
-};
+const DEFAULT_TIER_COLORS = ['#cd7f32', '#c0c0c0', '#ffd700', '#1e90ff', '#32cd32', '#ff69b4', '#8a2be2', '#ff8c00'];
+const DEFAULT_BADGE_TIERS = [
+  { key: 'bronze', name: 'Bronze', minHours: 20, color: '#cd7f32' },
+  { key: 'silver', name: 'Silver', minHours: 40, color: '#c0c0c0' },
+  { key: 'gold', name: 'Gold', minHours: 60, color: '#ffd700' }
+];
 
-function getDefaultBadgeStatus() {
-  return {
-    bronze: false,
-    silver: false,
-    gold: false
-  };
+function normalizeTierKey(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
-function getMemberBadgeStatus(member) {
+function normalizeTierColor(color) {
+  const normalized = String(color || '').trim().toLowerCase();
+  return /^#[0-9a-f]{6}$/.test(normalized) ? normalized : null;
+}
+
+function hslToHex(h, s, l) {
+  const sat = Math.max(0, Math.min(100, s)) / 100;
+  const light = Math.max(0, Math.min(100, l)) / 100;
+  const hue = ((h % 360) + 360) % 360;
+
+  const c = (1 - Math.abs(2 * light - 1)) * sat;
+  const x = c * (1 - Math.abs((hue / 60) % 2 - 1));
+  const m = light - c / 2;
+
+  let r = 0;
+  let g = 0;
+  let b = 0;
+
+  if (hue < 60) [r, g, b] = [c, x, 0];
+  else if (hue < 120) [r, g, b] = [x, c, 0];
+  else if (hue < 180) [r, g, b] = [0, c, x];
+  else if (hue < 240) [r, g, b] = [0, x, c];
+  else if (hue < 300) [r, g, b] = [x, 0, c];
+  else [r, g, b] = [c, 0, x];
+
+  const toHex = (n) => Math.round((n + m) * 255).toString(16).padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+function getUniqueDefaultTierColor(index, usedColors = new Set()) {
+  for (const color of DEFAULT_TIER_COLORS) {
+    if (!usedColors.has(color)) return color;
+  }
+
+  let attempt = 0;
+  while (attempt < 360) {
+    const hue = Math.round((index * 137.508 + attempt * 23) % 360);
+    const generated = hslToHex(hue, 65, 55).toLowerCase();
+    if (!usedColors.has(generated)) return generated;
+    attempt += 1;
+  }
+
+  return '#555555';
+}
+
+function normalizeBadgeTiers(rawTiers) {
+  const source = Array.isArray(rawTiers) && rawTiers.length ? rawTiers : DEFAULT_BADGE_TIERS;
+  const usedKeys = new Set();
+  const usedColors = new Set();
+  const normalized = [];
+
+  source.forEach((tier, index) => {
+    const name = String(tier?.name || '').trim() || `Tier ${index + 1}`;
+    const baseKey = normalizeTierKey(tier?.key || name) || `tier-${index + 1}`;
+    let key = baseKey;
+    let suffix = 2;
+    while (usedKeys.has(key)) {
+      key = `${baseKey}-${suffix}`;
+      suffix += 1;
+    }
+    usedKeys.add(key);
+
+    const minHours = Number.isFinite(Number(tier?.minHours)) ? Number(tier.minHours) : 0;
+    const parsedMinHours = Math.max(0, minHours);
+
+    const providedColor = normalizeTierColor(tier?.color);
+    const color = providedColor || getUniqueDefaultTierColor(index, usedColors);
+    usedColors.add(color);
+
+    normalized.push({ key, name, minHours: parsedMinHours, color });
+  });
+
+  return normalized.sort((a, b) => a.minHours - b.minHours);
+}
+
+function getBadgeTiers(data) {
+  return normalizeBadgeTiers(data?.badgeTiers);
+}
+
+function getDefaultBadgeStatus(tiers) {
+  return tiers.reduce((acc, tier) => {
+    acc[tier.key] = false;
+    return acc;
+  }, {});
+}
+
+function getMemberBadgeStatus(member, tiers) {
   const badges = member?.badges || {};
-  return {
-    bronze: !!badges.bronze,
-    silver: !!badges.silver,
-    gold: !!badges.gold
-  };
+  return tiers.reduce((acc, tier) => {
+    acc[tier.key] = !!badges[tier.key];
+    return acc;
+  }, {});
 }
 
 function calculateMemberTotalHours(data, memberCode) {
@@ -275,20 +361,35 @@ function calculateAllMemberTotalHours(data) {
   return totals;
 }
 
-function getEligibleBadgeStatus(totalHours) {
-  return {
-    bronze: totalHours >= BADGE_TIERS.bronze.minHours,
-    silver: totalHours >= BADGE_TIERS.silver.minHours,
-    gold: totalHours >= BADGE_TIERS.gold.minHours
-  };
+function getEligibleBadgeStatus(totalHours, tiers) {
+  return tiers.reduce((acc, tier) => {
+    acc[tier.key] = totalHours >= tier.minHours;
+    return acc;
+  }, {});
 }
 
-function getNormalizedBadgeType(badge) {
+function getPendingBadgeStatus(eligible, received) {
+  return Object.keys(eligible).reduce((acc, key) => {
+    acc[key] = !!eligible[key] && !received[key];
+    return acc;
+  }, {});
+}
+
+function getHighestEligibleTier(totalHours, tiers) {
+  let highest = null;
+  tiers.forEach((tier) => {
+    if (totalHours >= tier.minHours) highest = tier;
+  });
+  return highest;
+}
+
+function getNormalizedBadgeType(badge, tiers) {
   if (!badge) return 'all';
-  const normalized = String(badge).toLowerCase();
-  if (normalized === 'all' || normalized === 'bronze' || normalized === 'silver' || normalized === 'gold') {
+  const normalized = normalizeTierKey(badge);
+  if (normalized === 'all') {
     return normalized;
   }
+  if (tiers.some(tier => tier.key === normalized)) return normalized;
   return null;
 }
 
@@ -659,12 +760,18 @@ app.get('/api/check-auth', (req, res) => {
 app.get('/api/public/members', async (req, res) => {
   try {
     const data = await readData();
+    const tiers = getBadgeTiers(data);
     const members = data.members.filter(m => !m.hiddenFromPublic);
     const totals = calculateAllMemberTotalHours(data);
     // Calculate total hours for each member
     const membersWithHours = members.map(m => {
       const hours = totals[m.code] || 0;
-      return { name: m.name, totalHours: hours };
+      const tier = getHighestEligibleTier(hours, tiers);
+      return {
+        name: m.name,
+        totalHours: hours,
+        tier: tier ? { key: tier.key, name: tier.name, color: tier.color } : null
+      };
     });
     // Sort by hours descending
     membersWithHours.sort((a, b) => b.totalHours - a.totalHours);
@@ -674,27 +781,77 @@ app.get('/api/public/members', async (req, res) => {
   }
 });
 
+// GET /api/badge-tiers - Get configurable badge tiers
+app.get('/api/badge-tiers', requireAuth, async (req, res) => {
+  try {
+    const data = await readData();
+    res.json({ tiers: getBadgeTiers(data) });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch badge tiers' });
+  }
+});
+
+// PUT /api/badge-tiers - Update configurable badge tiers
+app.put('/api/badge-tiers', requireSuperAdmin, async (req, res) => {
+  try {
+    const { tiers } = req.body || {};
+    if (!Array.isArray(tiers) || !tiers.length) {
+      return res.status(400).json({ error: 'At least one badge tier is required.' });
+    }
+    const hasInvalidTier = tiers.some(tier =>
+      !tier ||
+      typeof tier !== 'object' ||
+      !String(tier.name || '').trim() ||
+      !Number.isFinite(Number(tier.minHours)) ||
+      Number(tier.minHours) < 0
+    );
+    if (hasInvalidTier) {
+      return res.status(400).json({ error: 'Each tier needs a name and a non-negative hours value.' });
+    }
+
+    const data = await readData();
+    const normalizedTiers = normalizeBadgeTiers(tiers);
+    data.badgeTiers = normalizedTiers;
+
+    data.members = (data.members || []).map(member => {
+      const current = member?.badges || {};
+      const normalizedBadges = getDefaultBadgeStatus(normalizedTiers);
+      normalizedTiers.forEach(tier => {
+        normalizedBadges[tier.key] = !!current[tier.key];
+      });
+      return { ...member, badges: normalizedBadges };
+    });
+
+    await writeData(data);
+
+    await logAudit('UPDATE_BADGE_TIERS', {
+      tiers: normalizedTiers
+    }, req.session.username);
+
+    res.json({ success: true, tiers: normalizedTiers });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update badge tiers' });
+  }
+});
+
 // GET /api/badges/eligibility - Badge eligibility and receipt status (super admin & sam)
 app.get('/api/badges/eligibility', requireAuth, async (req, res) => {
   try {
     const data = await readData();
+    const tiers = getBadgeTiers(data);
     const totals = calculateAllMemberTotalHours(data);
-    const filterBadge = getNormalizedBadgeType(req.query.badge);
+    const filterBadge = getNormalizedBadgeType(req.query.badge, tiers);
     const includeReceived = req.query.includeReceived === 'true';
 
     if (!filterBadge) {
-      return res.status(400).json({ error: 'Invalid badge filter. Use bronze, silver, gold, or all.' });
+      return res.status(400).json({ error: 'Invalid badge filter. Use a configured tier key or all.' });
     }
 
     const badgeRows = data.members.map(member => {
       const totalHours = totals[member.code] || 0;
-      const eligible = getEligibleBadgeStatus(totalHours);
-      const received = getMemberBadgeStatus(member);
-      const shouldReceive = {
-        bronze: eligible.bronze && !received.bronze,
-        silver: eligible.silver && !received.silver,
-        gold: eligible.gold && !received.gold
-      };
+      const eligible = getEligibleBadgeStatus(totalHours, tiers);
+      const received = getMemberBadgeStatus(member, tiers);
+      const shouldReceive = getPendingBadgeStatus(eligible, received);
 
       return {
         name: member.name,
@@ -707,10 +864,10 @@ app.get('/api/badges/eligibility', requireAuth, async (req, res) => {
     }).sort((a, b) => b.totalHours - a.totalHours);
 
     const filteredRows = badgeRows.filter(row => {
-      const hasPending = row.shouldReceive.bronze || row.shouldReceive.silver || row.shouldReceive.gold;
+      const hasPending = Object.values(row.shouldReceive).some(Boolean);
       if (filterBadge === 'all') {
         return includeReceived
-          ? (hasPending || row.received.bronze || row.received.silver || row.received.gold)
+          ? (hasPending || Object.values(row.received).some(Boolean))
           : hasPending;
       }
       return includeReceived
@@ -728,9 +885,14 @@ app.get('/api/badges/eligibility', requireAuth, async (req, res) => {
 app.get('/api/badges/eligibility/csv', requireAuth, async (req, res) => {
   try {
     const data = await readData();
+    const tiers = getBadgeTiers(data);
     const totals = calculateAllMemberTotalHours(data);
-    const filterBadge = getNormalizedBadgeType(req.query.badge) || 'all';
+    const filterBadge = getNormalizedBadgeType(req.query.badge, tiers);
     const includeReceived = req.query.includeReceived === 'true';
+
+    if (!filterBadge) {
+      return res.status(400).json({ error: 'Invalid badge filter. Use a configured tier key or all.' });
+    }
 
     const csvEscape = (val) => {
       const str = String(val == null ? '' : val);
@@ -742,54 +904,54 @@ app.get('/api/badges/eligibility/csv', requireAuth, async (req, res) => {
 
     const badgeRows = data.members.map(member => {
       const totalHours = totals[member.code] || 0;
-      const eligible = getEligibleBadgeStatus(totalHours);
-      const received = getMemberBadgeStatus(member);
-      const shouldReceive = {
-        bronze: eligible.bronze && !received.bronze,
-        silver: eligible.silver && !received.silver,
-        gold: eligible.gold && !received.gold
-      };
+      const eligible = getEligibleBadgeStatus(totalHours, tiers);
+      const received = getMemberBadgeStatus(member, tiers);
+      const shouldReceive = getPendingBadgeStatus(eligible, received);
       return { name: member.name, code: member.code, totalHours, eligible, received, shouldReceive };
     }).sort((a, b) => b.totalHours - a.totalHours);
 
     const filteredRows = badgeRows.filter(row => {
-      const hasPending = row.shouldReceive.bronze || row.shouldReceive.silver || row.shouldReceive.gold;
+      const hasPending = Object.values(row.shouldReceive).some(Boolean);
       if (filterBadge === 'all') {
-        return includeReceived ? (hasPending || row.received.bronze || row.received.silver || row.received.gold) : hasPending;
+        return includeReceived ? (hasPending || Object.values(row.received).some(Boolean)) : hasPending;
       }
       return includeReceived ? (row.eligible[filterBadge] || row.received[filterBadge]) : row.shouldReceive[filterBadge];
     });
 
     const yesNo = (v) => v ? 'Yes' : 'No';
-    const getDueSummaryLine = (badge, label) => {
+    const getDueSummaryLine = (badgeKey, label) => {
       const dueNames = filteredRows
-        .filter(row => row.shouldReceive[badge])
+        .filter(row => row.shouldReceive[badgeKey])
         .map(row => row.name);
       return `${label}: ${dueNames.length ? dueNames.join(', ') : 'None'}`;
     };
 
-    let csv = 'Name,Code,Total Hours,Eligible Bronze,Eligible Silver,Eligible Gold,Received Bronze,Received Silver,Received Gold,Needs Bronze,Needs Silver,Needs Gold\n';
+    const headerColumns = [
+      'Name',
+      'Code',
+      'Total Hours',
+      ...tiers.map(tier => `Eligible ${tier.name}`),
+      ...tiers.map(tier => `Received ${tier.name}`),
+      ...tiers.map(tier => `Needs ${tier.name}`)
+    ];
+    let csv = `${headerColumns.join(',')}\n`;
     filteredRows.forEach(row => {
       csv += [
         csvEscape(row.name),
         csvEscape(row.code),
         row.totalHours,
-        yesNo(row.eligible.bronze),
-        yesNo(row.eligible.silver),
-        yesNo(row.eligible.gold),
-        yesNo(row.received.bronze),
-        yesNo(row.received.silver),
-        yesNo(row.received.gold),
-        yesNo(row.shouldReceive.bronze),
-        yesNo(row.shouldReceive.silver),
-        yesNo(row.shouldReceive.gold)
+        ...tiers.map(tier => yesNo(row.eligible[tier.key])),
+        ...tiers.map(tier => yesNo(row.received[tier.key])),
+        ...tiers.map(tier => yesNo(row.shouldReceive[tier.key]))
       ].join(',') + '\n';
     });
 
     csv += '\n';
-    csv += csvEscape(getDueSummaryLine('gold', 'Gold')) + '\n';
-    csv += csvEscape(getDueSummaryLine('silver', 'Silver')) + '\n';
-    csv += csvEscape(getDueSummaryLine('bronze', 'Bronze')) + '\n';
+    [...tiers]
+      .sort((a, b) => b.minHours - a.minHours)
+      .forEach(tier => {
+        csv += csvEscape(getDueSummaryLine(tier.key, tier.name)) + '\n';
+      });
 
     const exportDate = new Date().toISOString().slice(0, 10);
     res.setHeader('Content-Type', 'text/csv');
@@ -804,25 +966,27 @@ app.get('/api/badges/eligibility/csv', requireAuth, async (req, res) => {
 app.get('/api/members/:code/badges', requireAuth, async (req, res) => {
   try {
     const { code } = req.params;
-    const badge = getNormalizedBadgeType(req.query.badge);
+    const data = await readData();
+    const tiers = getBadgeTiers(data);
+    const badge = getNormalizedBadgeType(req.query.badge, tiers);
     if (!badge) {
-      return res.status(400).json({ error: 'Invalid badge. Use bronze, silver, gold, or all.' });
+      return res.status(400).json({ error: 'Invalid badge. Use a configured tier key or all.' });
     }
 
-    const data = await readData();
     const member = data.members.find(m => m.code === code);
     if (!member) {
       return res.status(404).json({ error: 'Member not found' });
     }
 
     const totalHours = calculateMemberTotalHours(data, code);
-    const eligible = getEligibleBadgeStatus(totalHours);
-    const received = getMemberBadgeStatus(member);
+    const eligible = getEligibleBadgeStatus(totalHours, tiers);
+    const received = getMemberBadgeStatus(member, tiers);
 
     if (badge === 'all') {
       return res.json({
         code,
         totalHours,
+        tiers,
         eligible,
         received
       });
@@ -844,27 +1008,28 @@ app.get('/api/members/:code/badges', requireAuth, async (req, res) => {
 app.post('/api/members/:code/badges', requireSuperAdmin, async (req, res) => {
   try {
     const { code } = req.params;
-    const badge = getNormalizedBadgeType(req.body.badge);
     const receivedValue = req.body.received !== undefined ? !!req.body.received : true;
     const { skipLog } = req.body;
+    const data = await readData();
+    const tiers = getBadgeTiers(data);
+    const badge = getNormalizedBadgeType(req.body.badge, tiers);
 
     if (!badge) {
-      return res.status(400).json({ error: 'Invalid badge. Use bronze, silver, gold, or all.' });
+      return res.status(400).json({ error: 'Invalid badge. Use a configured tier key or all.' });
     }
 
-    const data = await readData();
     const memberIndex = data.members.findIndex(m => m.code === code);
     if (memberIndex === -1) {
       return res.status(404).json({ error: 'Member not found' });
     }
 
-    const currentStatus = getMemberBadgeStatus(data.members[memberIndex]);
+    const currentStatus = getMemberBadgeStatus(data.members[memberIndex], tiers);
     const updatedStatus = { ...currentStatus };
 
     if (badge === 'all') {
-      updatedStatus.bronze = receivedValue;
-      updatedStatus.silver = receivedValue;
-      updatedStatus.gold = receivedValue;
+      tiers.forEach(tier => {
+        updatedStatus[tier.key] = receivedValue;
+      });
     } else {
       updatedStatus[badge] = receivedValue;
     }
@@ -921,7 +1086,7 @@ app.post('/api/members', requireAuth, async (req, res) => {
       yearLevel: yearLevel || '',
       email: email || '',
       manualHours: 0,  // Initialize manual hours
-      badges: getDefaultBadgeStatus()
+      badges: getDefaultBadgeStatus(tiers)
     };
     
     data.members.push(newMember);
@@ -945,6 +1110,7 @@ app.put('/api/members/:code', requireAuth, async (req, res) => {
     }
     
     const data = await readData();
+    const tiers = getBadgeTiers(data);
     const memberIndex = data.members.findIndex(m => m.code === code);
     
     if (memberIndex === -1) {
@@ -973,7 +1139,7 @@ app.put('/api/members/:code', requireAuth, async (req, res) => {
       yearLevel: yearLevel || '',
       email: email !== undefined ? email : (existingMember.email || ''),
       manualHours: existingMember.manualHours || 0,
-      badges: getMemberBadgeStatus(existingMember)
+      badges: getMemberBadgeStatus(existingMember, tiers)
     };
     
     // If code changed, update attendee lists in sessions
