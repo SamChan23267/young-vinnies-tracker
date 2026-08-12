@@ -1077,6 +1077,7 @@ app.post('/api/members', requireAuth, async (req, res) => {
     }
     
     const data = await readData();
+    const tiers = getBadgeTiers(data);
     const existingCodes = data.members.map(m => m.code);
     const code = generateMemberCode(name.trim(), existingCodes);
     
