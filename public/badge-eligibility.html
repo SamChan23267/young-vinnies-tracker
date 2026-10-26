@@ -523,17 +523,21 @@
             if (!confirm(`This will mark ${total} badge(s) as received across ${pending.length} member(s). Continue?`)) return;
 
             try {
-                await Promise.all(
-                    pending.flatMap(row =>
-                        Object.entries(row.shouldReceive)
-                            .filter(([, v]) => !!v)
-                            .map(([badge]) => apiCall(`/api/members/${encodeURIComponent(row.code)}/badges`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ badge, received: true })
-                            }))
-                    )
-                );
+                // Execute sequentially to prevent race conditions when a member has multiple pending badges
+                for (const row of pending) {
+                    const pendingBadges = Object.entries(row.shouldReceive)
+                        .filter(([, v]) => !!v)
+                        .map(([badge]) => badge);
+
+                    for (const badge of pendingBadges) {
+                        await apiCall(`/api/members/${encodeURIComponent(row.code)}/badges`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ badge, received: true })
+                        });
+                    }
+                }
+
                 showMessage(`Awarded ${total} badge(s) across ${pending.length} member(s)!`, 'success');
                 await loadBadgeEligibility();
             } catch (error) {
