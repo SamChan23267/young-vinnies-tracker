@@ -1151,7 +1151,7 @@ if (window.location.pathname.endsWith('sessions.html')) {
                 <div class="session-item">
                     <div class="action-buttons">
                         <button class="btn btn-edit" onclick="editSession('${session.id}')">Edit</button>
-                        <button class="btn btn-delete" onclick="deleteSession('${session.id}', '${session.description}')">Delete</button>
+                        <button class="btn btn-delete" onclick="deleteSession('${session.id}', '${session.description.replace(/'/g, "\\'")}')">Delete</button>
                     </div>
                     <h4>${session.description}</h4>
                     <p><strong>Date:</strong> ${new Date(session.date).toLocaleDateString()}</p>
